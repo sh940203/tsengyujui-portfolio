@@ -1,0 +1,153 @@
+import type { Metadata } from "next";
+import { asc, eq, inArray } from "drizzle-orm";
+import { db } from "@/lib/db/client";
+import { getHomeCarouselImages } from "@/lib/media/featured";
+import { resolveOgImageUrl } from "@/lib/media/resolve-og-image";
+import { getProfile } from "@/lib/profile/get-profile";
+import { collections, media } from "@/lib/db/schema";
+import {
+  GENERIC_SITE_DESCRIPTION,
+  absoluteUrl,
+  buildPersonJsonLd,
+  jsonLdScriptProps,
+  truncateDescription,
+} from "@/lib/seo";
+import { LangPageWrapper } from "@/components/lang-page-wrapper";
+import { SiteFooter } from "@/components/site-footer";
+import { Hero } from "./hero";
+import { BioSection, SeriesList } from "./home-sections";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const profileRow = await getProfile();
+  const title =
+    profileRow?.seoTitle ?? `${profileRow?.nameEn ?? "Tseng Yu Jui"} — ${profileRow?.roleEn ?? "Fashion Designer"}`;
+  const description = profileRow?.seoDescription
+    ? truncateDescription(profileRow.seoDescription)
+    : profileRow?.bioEn
+      ? truncateDescription(profileRow.bioEn)
+      : GENERIC_SITE_DESCRIPTION;
+  const image = await resolveOgImageUrl(profileRow?.defaultOgImageId ?? profileRow?.heroImageId);
+
+  return {
+    title: { absolute: title },
+    description,
+    alternates: { canonical: absoluteUrl("/") },
+    openGraph: {
+      title,
+      description,
+      url: absoluteUrl("/"),
+      type: "website",
+      images: image ? [{ url: image }] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: image ? [image] : undefined,
+    },
+  };
+}
+
+/**
+ * 首頁（SPEC.md §4.2）：Hero（背景輪播）→ 系列列表（僅
+ * `visibility === 'public'`，查詢層過濾，沿用 `/work/[slug]` 已經定案的
+ * 原則，不是前端 filter）→ 簡短簡介 → 頁尾。
+ *
+ * 系列列表這批刻意不帶 statement 摘要段落（跟業主確認過，維持 SPEC
+ * 原文的封面圖＋標題＋年份＋類型）——完整可讀的雙語文字說明段落由
+ * `/work/[slug]` 內頁的 statement 區塊負責，見 HANDOFF.md。
+ *
+ * Hero 背景輪播的圖片池邏輯見 `src/lib/media/featured.ts`（業主精選照，
+ * 每個系列各自 fallback 回該系列 sortOrder 最前 3 張）。池子完全是空的
+ * （例如還沒有任何系列是 public）時，退回 `profile.heroImageId` 當
+ * 單張靜態背景；兩者都沒有就維持純黑背景，跟這批之前驗證過的優雅降級
+ * 行為一致。
+ */
+export default async function HomePage() {
+  const profileRow = await getProfile();
+
+  const publicCollections = await db
+    .select({
+      slug: collections.slug,
+      titleEn: collections.titleEn,
+      titleZh: collections.titleZh,
+      year: collections.year,
+      category: collections.category,
+      coverImageId: collections.coverImageId,
+    })
+    .from(collections)
+    .where(eq(collections.visibility, "public"))
+    .orderBy(asc(collections.sortOrder));
+
+  // 只查真的會用到的圖（各系列封面圖 + Hero 的 fallback 靜態圖），不是
+  // 抓全站 media——原本沒有 `where`，會把每一筆 media（含草稿系列的）
+  // 的 `r2Key` 都撈出來，見 SEO 批次全專案排查的結論（`get-profile.ts`
+  // 開頭有完整說明），這裡是這批之前的既有寫法，一併收斂。
+  const neededMediaIds = [
+    ...publicCollections.map((c) => c.coverImageId),
+    profileRow?.heroImageId,
+  ].filter((id): id is string => !!id);
+  const mediaRows =
+    neededMediaIds.length > 0
+      ? await db
+          .select({ id: media.id, r2Key: media.r2Key })
+          .from(media)
+          .where(inArray(media.id, neededMediaIds))
+      : [];
+  const mediaMap = new Map(mediaRows.map((m) => [m.id, m.r2Key]));
+
+  const carouselImages = await getHomeCarouselImages();
+  const heroImages =
+    carouselImages.length > 0
+      ? carouselImages.map((img) => ({ id: img.id, r2Key: img.r2Key, altEn: img.altEn }))
+      : profileRow?.heroImageId && mediaMap.get(profileRow.heroImageId)
+        ? [{ id: profileRow.heroImageId, r2Key: mediaMap.get(profileRow.heroImageId)!, altEn: null }]
+        : [];
+
+  const personImage = await resolveOgImageUrl(profileRow?.defaultOgImageId ?? profileRow?.heroImageId);
+  const jsonLd = buildPersonJsonLd({
+    nameEn: profileRow?.nameEn ?? "Tseng Yu Jui",
+    nameZh: profileRow?.nameZh ?? null,
+    roleEn: profileRow?.roleEn ?? null,
+    roleZh: profileRow?.roleZh ?? null,
+    locationEn: profileRow?.locationEn ?? null,
+    locationZh: profileRow?.locationZh ?? null,
+    bioEn: profileRow?.bioEn ?? null,
+    bioZh: profileRow?.bioZh ?? null,
+    email: profileRow?.email ?? null,
+    instagram: profileRow?.instagram ?? null,
+    behance: profileRow?.behance ?? null,
+    imageUrl: personImage,
+  });
+
+  return (
+    <LangPageWrapper>
+      <script type="application/ld+json" {...jsonLdScriptProps(jsonLd)} />
+      <Hero
+        nameEn={profileRow?.nameEn ?? ""}
+        nameZh={profileRow?.nameZh ?? ""}
+        roleEn={profileRow?.roleEn ?? null}
+        roleZh={profileRow?.roleZh ?? null}
+        locationEn={profileRow?.locationEn ?? null}
+        locationZh={profileRow?.locationZh ?? null}
+        images={heroImages}
+      />
+      <SeriesList
+        items={publicCollections.map((c) => ({
+          slug: c.slug,
+          titleEn: c.titleEn,
+          titleZh: c.titleZh,
+          year: c.year,
+          category: c.category,
+          coverR2Key: c.coverImageId ? (mediaMap.get(c.coverImageId) ?? null) : null,
+        }))}
+      />
+      <BioSection bioEn={profileRow?.bioEn ?? null} bioZh={profileRow?.bioZh ?? null} />
+      <SiteFooter
+        email={profileRow?.email ?? null}
+        instagram={profileRow?.instagram ?? null}
+        nameEn={profileRow?.nameEn ?? ""}
+      />
+    </LangPageWrapper>
+  );
+}
