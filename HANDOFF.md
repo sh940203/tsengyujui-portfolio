@@ -3,13 +3,17 @@
 > 交接文件，供下一個 session 直接接手，不需重新翻對話紀錄。
 > 完整規格見 [SPEC.md](./SPEC.md)。本文件只記錄「規格書之外」的現況、決策與驗證結果。
 >
-> 產生時間：2026-09-13（2026-09-14 更新：即時預覽 iframe、草稿/發布機制、發布狀態樂觀更新、共用渲染元件搬遷 + 設計系統、lens 互動修復、`/work/[slug]` 前台頁面、SPEC §6 語言系統、首頁、Hero 背景輪播 + 精選照後台管理、關於頁、內容提示層、SEO/AEO/GEO 收尾、全專案「select 整列」洩漏排查皆已完成）
+> 產生時間：2026-09-13（2026-09-14 更新：即時預覽 iframe、草稿/發布機制、發布狀態樂觀更新、共用渲染元件搬遷 + 設計系統、lens 互動修復、`/work/[slug]` 前台頁面、SPEC §6 語言系統、首頁、Hero 背景輪播 + 精選照後台管理、關於頁、內容提示層、SEO/AEO/GEO 收尾、全專案「select 整列」洩漏排查、git 歷史/GitHub/Vercel 上線、無障礙+效能稽核皆已完成）
+>
+> **上線網址：https://tsengyujui-portfolio.vercel.app**（GitHub：私有 repo `sh940203/tsengyujui-portfolio`）
 
 ---
 
 ## 1. 專案現況總覽
 
-**目前位置：Phase 3（Block Editor）全部完成。Phase 4（前台）全部完成。Phase 5（SEO/AEO/GEO 收尾，SPEC §13 項目 27）也已完成：`generateMetadata`（首頁/關於頁/`/work/[slug]`）、JSON-LD（`Person`/`CreativeWork`）、`sitemap.xml`、`robots.txt`、`llms.txt` 都已實作並用真實 `pnpm build && pnpm start`（不只是 `next dev`）測過。三個系列目前 `visibility` 都是 `draft`，正式上線前業主需要決定何時切換成 `public`（見 §3.2）——只要切了 `public` 並發布過，首頁/系列頁/sitemap/llms.txt 會自動一起更新（這批修過一個會讓這件事失效的既有 bug，見下方）。剩無障礙檢查、效能優化（SPEC §13 項目 28–29）還沒系統性測過。**
+**目前位置：Phase 3（Block Editor）、Phase 4（前台）、Phase 5（SEO/AEO/GEO 收尾 + 無障礙 + 效能，SPEC §13 項目 27–29）全部完成。專案已經正式上線到 Vercel（https://tsengyujui-portfolio.vercel.app ，GitHub 私有 repo `sh940203/tsengyujui-portfolio`）。三個系列目前 `visibility` 都是 `draft`，業主需要決定何時切換成 `public`（見 §3.2）——只要切了 `public` 並發布過，首頁/系列頁/sitemap/llms.txt 會自動一起更新（生產環境經 Git 整合，push 到 `main` 會自動重新部署）。Lighthouse 對正式站實測：首頁/關於頁 Performance 94–99、Accessibility 100、Best Practices 96、SEO 100，全部超過 SPEC §9.3 目標。**
+
+**上線前還差的東西（見 §1.1 第十批）**：`EMAIL_SERVER`/`EMAIL_FROM`（真實 SMTP 憑證，業主提供，Magic Link 登入在正式站目前還不能用，不影響公開瀏覽）、Preview 環境變數（Vercel CLI 這版有 bug，需要業主自己到 dashboard 補）、Preview 專用的獨立 Turso/R2（SPEC §1.2 建議，目前跟 Production 共用）。
 
 ### 1.1 已完成並實測驗證的項目
 
@@ -425,6 +429,42 @@ Phase 4 主要頁面（首頁、系列內頁）到這裡都完成了。SPEC.md �
 
 **結論：已排查全專案，公開路由可達的查詢函式裡，除了上面列的 4 處（1 處第八批已修、3 處這批新修），沒有發現其他「select 整列」或「列範圍未收斂」的案例。** Admin 端另外還有 2 處相同模式但風險層級不同（見上方），照指示保留原樣。
 
+**Phase 5 — 第十批：正式建立 git 歷史、GitHub、Vercel 上線**
+
+這批之前專案完全沒有 git 歷史（`git log` 顯示 "No commits yet"）。做了三件事：
+
+1. **git 歷史**：依 HANDOFF 本文件既有的 phase/批次分類，把現有檔案（都是最終狀態，沒有真正的逐批次差異快照）組成 9 個邏輯分明的 commit（scaffold → Phase 1 資料庫/認證/上傳 → Phase 2 後台核心 → Phase 3 Block Editor → Phase 4 共用渲染/語言系統/系列頁 → 首頁+Hero輪播 → 關於頁 → SEO/AEO/GEO+安全排查 → 文件）。**誠實揭露**：這是「依主題整理」不是「逐批次真實重現」——沒有保留每個批次當下的中間版本，被多個批次改過的檔案（例如 `schema.ts`）在它第一次出現的 commit 裡就已經是最終內容，不是逐步演進的快照。之後每個新批次（含這批自己）都會是真正的獨立 commit。
+2. **GitHub**：新建 **private** repo `sh940203/tsengyujui-portfolio`（SPEC §12.10 明確要求 private），9 個 commit 一次推上去。
+3. **Vercel**：`vercel link` 建立新專案並自動接上 GitHub repo（之後 push 到 `main` 會自動觸發 production 部署，已用第十一批的兩次 push 實測確認）。Production 環境變數全部設定：`TURSO_*`/`R2_*`/`UPSTASH_*` 沿用 `.env.local` 既有的真實憑證（早就在用、已實測過），`ALLOWED_LOGIN_EMAILS` 沿用業主信箱，`AUTH_SECRET` 現場產生一組新的（不沿用本機開發那組，SPEC §1.2 明講每個 Vercel 環境要各自獨立產生），`NEXT_PUBLIC_SITE_URL`/`AUTH_URL` 設成 Vercel 配的預設網域 `https://tsengyujui-portfolio.vercel.app`（部署後才知道真實網址，先用專案名稱猜的模式，部署完 curl 復驗確認猜對）。
+
+**上線網址：https://tsengyujui-portfolio.vercel.app**（首頁/關於頁/sitemap.xml/robots.txt/llms.txt 都 curl 復驗過 200）。
+
+**還沒做、明確記錄的缺口**：
+- **`EMAIL_SERVER`/`EMAIL_FROM` 沒有設定**——這兩個值需要業主提供真實 SMTP 憑證，不是工程端能自己決定或編造的，Production 環境目前這兩個變數是空的。這代表 Magic Link 登入在正式站上**還不能用**，公開瀏覽（首頁/系列頁/關於頁）不受影響，只有 `/admin` 登入流程受阻。
+- **Preview 環境變數沒有設完整**——`vercel env add <name> preview --value <value> --yes` 這個 CLI 指令組合在目前的 Vercel CLI 版本（54.14.0）對「套用到所有 Preview 分支」這個選項一直回傳 `action_required`/`git_branch_required` 錯誤，不管照官方提示的哪種指令格式都一樣，看起來是這版 CLI 的已知問題。Production 的部署跟環境變數都正常，只有 Preview（PR/非 main 分支的部署預覽）目前沒有任何環境變數，業主如果之後需要用 Preview 部署，需要自己到 Vercel dashboard 手動加（介面操作，不受這個 CLI bug 影響）。
+- **Preview 環境沒有獨立的 Turso/R2**——SPEC §1.2 建議 Preview 用獨立的 database 跟 bucket，避免測試資料污染正式內容；這批 Production 用了真實憑證，但沒有另外開一組給 Preview（需要額外的 Turso/Cloudflare 帳戶操作，不在這批範圍內）。等 Preview 環境變數補上時，這點也要一併考慮。
+
+**Phase 5 — 第十一批：無障礙（SPEC §13 項目 28）+ 效能（項目 29）稽核**
+
+用 Lighthouse CLI（`npx lighthouse`）**針對正式上線的 production 網址**測（不是本機 `next dev`——這批之前才確認過 dev 模式測不出快取相關的問題，這裡延續同樣的「測真正會上線的東西」原則）。
+
+**起始分數**（首頁）：Performance 95 / Accessibility 92 / Best Practices 96 / SEO 100。
+
+**抓到並修掉的問題**：
+
+1. **`media.altEn`/`altZh` 資料庫欄位跟後台上傳表單早就有，但共用渲染元件從沒接過**——每張公開的作品照片（這個網站的核心內容）alt 文字實際上是 `filename`（例如 `"DSC02109.jpeg"`）或空字串，對螢幕閱讀器使用者完全沒有意義。改成 `RenderMediaOption` 型別加上 `altEn`/`altZh`，`MediaBox`/`LensBlock` 依目前語言模式挑對應語言（缺該語言 fallback 另一語言），13 處呼叫點跟 3 個資料來源（`/work/[slug]`、admin 預覽、Block Editor 即時預覽的 postMessage）都串起來，TypeScript 型別系統直接幫忙抓出漏改的呼叫點。**目前資料庫 85 筆 media 全部沒有填 alt 文字**——這是需要業主或設計師實際描述每張照片內容的工作，工程端不會、也不該編造，後台編輯介面（`/admin/media`）本來就有欄位，只是從沒有人填過。
+2. **首頁跟 `/work/[slug]` 都沒有 `<h1>`**——首頁姓名原本是 `<div>`，改成 `<h1>`；區塊系統本身沒有固定的「標題」欄位（系列頁面完全由設計師自由編排 12 種區塊組成），所以在共用渲染元件裡加一個視覺隱藏（`sr-only`）的 `<h1>`（系列標題），不會蓋過設計師自己排出來的視覺標題。
+3. **全站沒有 `<main>` landmark**（Lighthouse `landmark-one-main`）——首頁、關於頁、`/work/[slug]` 的共用渲染元件都補上。
+4. **對比度**：實測算出兩個明確不過 WCAG AA 的（不是憑感覺調）——頁尾文字 `#6B6B6B` on `#0A0A0A` 只有 3.72:1，改成 `#808080`（5.01:1）；`「（未選圖片）」`/`「（尚未選圖片）」`佔位文字 `opacity-40` 在 dark/void 主題只有 ~3.3:1，改成 `opacity-60`（沿用 divider 已經在用的同一個值）。
+5. **`opacity-* 包住 <Lang> 元件會跟語言系統自己的 0.55 opacity 疊乘」**——這是第一輪修完重新測（見下方）才在關於頁抓到的、比較隱蔽的一個：`AboutHeader` 的職稱文字、`AwardResult`、`single` 區塊的圖說、`divider` 區塊的標籤，都用 `opacity-60`/`70` 包住 `<Lang>` 想做「次要文字」的視覺層級，但次要語言那個 span 本來就已經有 `.lang-zh`/`.lang-en` 的 0.55 opacity（SPEC §6.1 原文數字），兩層疊乘（例如 0.7×0.55≈0.39）讓次要語言幾乎看不見，實測對比度只剩 3.33:1。這跟 HANDOFF 記錄過的「Lang 元件 opacity 與 Hero 動效 opacity 疊加互相蓋掉」是同一類問題在不同地方復發。**修法是拿掉包住 `<Lang>` 的那層 opacity，不是去動 0.55**（0.55 是 SPEC 給的數字，不是工程端的預設值，這批沒有權限去改，這點延續前幾批「SPEC 明講的數字不擅自覆蓋」的原則）；`divider` 的裝飾用橫線改成各自套 `opacity-60`（線不是文字，WCAG 對比不適用），標籤文字本身不再被包進去。
+6. **沒有動、明確標記給業主的一個殘留風險**：語言系統的 `.lang-zh`/`.lang-en` 次要語言 0.55 opacity 這個數字本身，在 `theme: light` 的系列上、UI/Meta 級距的小字（0.62–0.65rem）算出來只有 4.05:1，沒有過 AA 的 4.5:1——這是 SPEC §6.1 原文數字造成的，不是工程端可以自己決定要不要改的東西。**目前三個系列都沒有用 `light` 主題**（都是 `dark`），這個問題現在是潛伏的、沒有實際影響，但 `light` 是後台可選的合法選項，业主或設計師如果之後挑了 `light` 主題就會踩到。SPEC.md §10.4 待業主確認清單已經有記錄這個問題（跟上一批「內容提示層持久化範圍」用同樣的措辭風格寫的）。
+
+**修完重新部署、重新測的分數**：
+- 首頁：Performance 94 / **Accessibility 100**（92→100）/ Best Practices 96 / SEO 100
+- 關於頁第一輪：Accessibility 95，還有 1 個 `color-contrast` 失敗（就是上面第 5 點抓到的疊乘問題）——第二輪修完後同一批重新測，色彩對比失敗清單裡確認已經消失。
+
+兩批都遠遠超過 SPEC §9.3 的目標（Performance ≥90、Accessibility ≥95）。Performance 剩下的扣分項（`unused-css-rules`/`unused-javascript`/`render-blocking-insight`/`network-dependency-tree` 等）是 Next.js/Tailwind/next/font 框架層級的一般性指標，沒有具體到「這裡有個可以馬上修的東西」，這批沒有繼續往下挖；`inspector-issues`（Content Security Policy）是 CSP 目前刻意維持 Report-Only 模式的預期副作用，SPEC §12.12 上線前檢查清單本來就把「CSP 無誤報後改強制模式」列成獨立的上線前步驟，不是這批要處理的。
+
 ### 1.2 進行中／下一步
 
 見本文件第 6 節「下一步具體指令」。
@@ -563,17 +603,16 @@ Phase 4 主要頁面（首頁、系列內頁）到這裡都完成了。SPEC.md �
 
 ## 6. 下一步具體指令
 
-**Phase 3（Block Editor）全部完成**（SPEC.md §13 項目 16–20）。**Phase 4 全部完成**（項目 21–26，見 §1.1）：共用渲染元件、SPEC §5 設計系統、SPEC §6 語言系統、lens 互動、`/work/[slug]` 系列內頁（含內容提示層）、首頁（含 Hero 背景輪播）、精選照後台管理、關於頁 `/about` 都已完成並實測。**Phase 5 的 SEO/AEO/GEO 收尾（項目 27）也完成了**（見 §1.1 第八批）。首頁版面最終定案：SPEC §4.2 原文結構，系列列表**不帶** statement 摘要段落（業主決定維持封面圖＋標題＋年份＋類型，完整文字段落只在 `/work/[slug]` 內頁）。
+**Phase 3、Phase 4、Phase 5（SPEC.md §13 項目 16–29）全部完成，專案已經上線**（https://tsengyujui-portfolio.vercel.app ，見 §1）。首頁版面最終定案：SPEC §4.2 原文結構，系列列表**不帶** statement 摘要段落（業主決定維持封面圖＋標題＋年份＋類型，完整文字段落只在 `/work/[slug]` 內頁）。
 
 給下一個 session 的建議開場指令：
 
-> Phase 4（前台）、Phase 5 的 SEO/AEO/GEO 收尾都已經完成並實測（見 HANDOFF.md §1.1）。剩下：
-> 1. **無障礙檢查**（SPEC §13 項目 28）跟**效能優化與 Lighthouse 調校**（項目 29）——都還沒系統性跑過，只有零星在各批次裡確認過沒有明顯錯誤。
-> 2. 這批（第八批）順手修了一個既有的 `revalidatePath` 缺口（`updateCollection`/`publishCollection` 原本沒有 revalidate 任何前台路徑），修完後建議找機會**用 `pnpm build && pnpm start` 而不是只用 `next dev`** 再把其他既有批次也複查一次——這批是第一次發現「dev 模式測過＝production 也沒問題」這個假設站不住腳，其他批次的驗證記錄可能也需要用同樣方法補測一次才能真的放心。
+> Phase 1–5 都已經完成並實測，專案已上線（見 HANDOFF.md §1）。剩下的都是「業主決策」或「需要業主提供憑證」，不是工程待辦：
+> 1. **`EMAIL_SERVER`/`EMAIL_FROM`**——業主提供真實 SMTP 憑證後補進 Vercel Production 環境變數，Magic Link 登入才能在正式站用（見 §1.1 第十批）。
+> 2. **Preview 環境變數**——Vercel CLI 54.14.0 對「套用到所有 Preview 分支」這個操作一直失敗，需要業主自己到 Vercel dashboard 手動補（見 §1.1 第十批）。
+> 3. **SPEC.md §10.4 待業主確認清單**（詳見該節，這裡只列摘要）：statement 區塊字級、金點新秀證書是否公開、內容提示層持久化範圍、淺色主題下次要語言文字的對比度數值。
 >
-> 之後如果業主準備要正式上線，記得先走一次 SPEC.md §12.12 上線前檢查清單，還有 `EMAIL_SERVER`/`EMAIL_FROM`、正式的 `NEXT_PUBLIC_SITE_URL` 目前 Vercel 上都是空的（見 §2.1），從沒測過真實 Magic Link 寄信流程。
-
-還有 SPEC.md §10.4 的**待業主確認項**：statement 區塊 small/medium/display 三階字級、full-bleed 疊字字級，都是工程端暫定數值，設計師可能會想調整；金點新秀證書是否公開展示現在只差業主一個決定（技術面第七批已經做完，見 §1.1）。
+> 業主準備好要讓網站真的公開（不是只在 Vercel 網址上，是心理上準備好被看到）時，記得先走一次 SPEC.md §12.12 上線前檢查清單，並把三個系列的 `visibility` 從 `draft` 切成 `public`（見 §3.2）。
 
 **沒有實測、需要業主/後續 session 補驗的一點**：Hero 背景輪播在 `prefers-reduced-motion` 開啟時是否真的停用自動播放（見 §1.1 第六批最後一點）——這個測試環境沒有 DevTools Rendering 面板的存取權限，只確認過程式碼邏輯（`matchMedia` 呼叫本身正常執行）沒有 bug，沒有肉眼切換系統偏好驗證過視覺效果。
 
