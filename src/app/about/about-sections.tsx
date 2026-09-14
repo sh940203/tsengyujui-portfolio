@@ -35,11 +35,11 @@ export function AboutHeader({
         <h1 style={{ fontSize: "clamp(2.5rem, 6vw, 4.5rem)", letterSpacing: "-0.01em" }}>
           <Lang en={nameEn} zh={nameZh} role="display" />
         </h1>
+        {/* 不用 opacity-70 包 <Lang>——會跟 `.lang-zh`/`.lang-en` 自己的
+            0.55 opacity 疊乘，次要語言那個 span 對比掉到 WCAG AA 門檻
+            以下（無障礙排查批次抓到，見 HANDOFF.md）。 */}
         {(roleEn || roleZh) && (
-          <div
-            className="mt-3 opacity-70"
-            style={{ fontSize: "clamp(0.7rem, 1.5vw, 0.9rem)", letterSpacing: "0.1em" }}
-          >
+          <div className="mt-3" style={{ fontSize: "clamp(0.7rem, 1.5vw, 0.9rem)", letterSpacing: "0.1em" }}>
             <Lang en={roleEn ?? ""} zh={roleZh ?? ""} role="ui" />
           </div>
         )}
@@ -108,7 +108,8 @@ export function AwardsList({ items }: { items: AwardListItem[] }) {
                 <AwardTitle titleEn={item.titleEn} titleZh={item.titleZh} />
               </span>
             </div>
-            <div className="opacity-70" style={{ fontSize: "0.85rem" }}>
+            {/* 不用 opacity-70 包（同一個坑，見 AboutHeader 的註解） */}
+            <div style={{ fontSize: "0.85rem" }}>
               <AwardResult resultEn={item.resultEn} resultZh={item.resultZh} />
             </div>
             {item.certificateR2Key && (

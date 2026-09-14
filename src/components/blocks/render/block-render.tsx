@@ -282,7 +282,8 @@ export function BlockRenderer({
       return (
         <div className={`mx-auto flex flex-col gap-2 ${SINGLE_WIDTH_CLASS[width]}`}>
           <MediaBox mediaOptions={mediaOptions} lang={lang} id={c.mediaId as string | null} className="relative aspect-[3/4] w-full" />
-          <p className={`opacity-70 ${BODY_TEXT_CLASS}`}>
+          {/* 不用 opacity-70 包 <Lang>——跟 divider 同一個坑，見那裡的註解 */}
+          <p className={BODY_TEXT_CLASS}>
             <Lang {...caption} role="ui" />
           </p>
         </div>
@@ -431,11 +432,20 @@ export function BlockRenderer({
     case "divider": {
       const style = (c.style as string) ?? "hairline";
       const label = (c.label as { en: string; zh: string }) ?? { en: "", zh: "" };
+      // `opacity-60`只放在兩條線本身（裝飾用，不是文字，WCAG 對比不適用），
+      // 不要包住 `Lang` 標籤——無障礙排查批次抓到：`opacity-*` 包住
+      // `Lang` 元件會跟 `.lang-en`/`.lang-zh` 自己的 0.55 opacity 疊乘
+      // （例如這裡原本 0.6 × 0.55 ≈ 0.33），次要語言那個 span 的對比會
+      // 掉到 WCAG AA 門檻以下，比只有語言系統自己的 0.55 還要更差。
       return (
-        <div className={`flex items-center gap-3 opacity-60 ${META_TEXT_CLASS}`}>
-          {style === "hairline" && <div className="h-px flex-1" style={{ backgroundColor: "currentColor" }} />}
+        <div className={`flex items-center gap-3 ${META_TEXT_CLASS}`}>
+          {style === "hairline" && (
+            <div className="h-px flex-1 opacity-60" style={{ backgroundColor: "currentColor" }} />
+          )}
           {(label.en || label.zh) && <Lang {...label} role="ui" />}
-          {style === "hairline" && <div className="h-px flex-1" style={{ backgroundColor: "currentColor" }} />}
+          {style === "hairline" && (
+            <div className="h-px flex-1 opacity-60" style={{ backgroundColor: "currentColor" }} />
+          )}
         </div>
       );
     }
