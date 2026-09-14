@@ -1,0 +1,1 @@
+ALTER TABLE `media` ADD `featured_order` integer;

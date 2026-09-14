@@ -1,0 +1,1 @@
+ALTER TABLE `awards` ADD `image_id` text REFERENCES media(id);

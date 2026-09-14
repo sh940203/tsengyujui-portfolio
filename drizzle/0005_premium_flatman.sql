@@ -1,0 +1,1 @@
+ALTER TABLE `awards` ADD `show_certificate` integer DEFAULT false NOT NULL;
