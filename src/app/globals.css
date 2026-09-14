@@ -1,0 +1,85 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/*
+ * SPEC.md §6 — 語言系統。兩種語言永遠同時存在於 DOM，切換改變的是
+ * 視覺層級（字級/透明度），不是內容有無。`data-lang` 掛在頁面的根容器上
+ * （系列內頁見 `CollectionBlocksRender`，首頁見 `home-page-client.tsx`），
+ * `.lang-en`/`.lang-zh` 是每段雙語文字各自的英文/中文 span（見
+ * `src/components/lang.tsx` 的 `Lang` 元件）。這裡的數字（1em/0.55em、
+ * 1/0.55）是 SPEC §6.1 原文給的，不是內插的。
+ */
+[data-lang="en"] .lang-en {
+  font-size: 1em;
+  opacity: 1;
+}
+[data-lang="en"] .lang-zh {
+  font-size: 0.55em;
+  opacity: 0.55;
+}
+[data-lang="zh"] .lang-zh {
+  font-size: 1em;
+  opacity: 1;
+}
+[data-lang="zh"] .lang-en {
+  font-size: 0.55em;
+  opacity: 0.55;
+}
+
+/*
+ * SPEC.md §4.2 — 首頁 Hero 進場動效，全站唯一一處非使用者觸發的動效。
+ * 三段式：水平線左至右展開（0.8s）→ 姓名滑入（逐行延遲 0.15s）→ 輔助
+ * 資訊淡入。`motion-safe:`/`motion-reduce:` 由 Tailwind 的媒體查詢
+ * variant 套用（SPEC §9.2：`prefers-reduced-motion` 時停用非必要動效），
+ * 這裡只放 keyframes 本身。
+ */
+@keyframes hero-line-expand {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes hero-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes hero-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
