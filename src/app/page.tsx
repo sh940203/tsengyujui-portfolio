@@ -123,26 +123,30 @@ export default async function HomePage() {
   return (
     <LangPageWrapper>
       <script type="application/ld+json" {...jsonLdScriptProps(jsonLd)} />
-      <Hero
-        nameEn={profileRow?.nameEn ?? ""}
-        nameZh={profileRow?.nameZh ?? ""}
-        roleEn={profileRow?.roleEn ?? null}
-        roleZh={profileRow?.roleZh ?? null}
-        locationEn={profileRow?.locationEn ?? null}
-        locationZh={profileRow?.locationZh ?? null}
-        images={heroImages}
-      />
-      <SeriesList
-        items={publicCollections.map((c) => ({
-          slug: c.slug,
-          titleEn: c.titleEn,
-          titleZh: c.titleZh,
-          year: c.year,
-          category: c.category,
-          coverR2Key: c.coverImageId ? (mediaMap.get(c.coverImageId) ?? null) : null,
-        }))}
-      />
-      <BioSection bioEn={profileRow?.bioEn ?? null} bioZh={profileRow?.bioZh ?? null} />
+      {/* 無障礙排查批次抓到（Lighthouse landmark-one-main）：全站沒有
+          <main>，補在這裡——頁尾維持獨立的 <footer>，不包進來。 */}
+      <main>
+        <Hero
+          nameEn={profileRow?.nameEn ?? ""}
+          nameZh={profileRow?.nameZh ?? ""}
+          roleEn={profileRow?.roleEn ?? null}
+          roleZh={profileRow?.roleZh ?? null}
+          locationEn={profileRow?.locationEn ?? null}
+          locationZh={profileRow?.locationZh ?? null}
+          images={heroImages}
+        />
+        <SeriesList
+          items={publicCollections.map((c) => ({
+            slug: c.slug,
+            titleEn: c.titleEn,
+            titleZh: c.titleZh,
+            year: c.year,
+            category: c.category,
+            coverR2Key: c.coverImageId ? (mediaMap.get(c.coverImageId) ?? null) : null,
+          }))}
+        />
+        <BioSection bioEn={profileRow?.bioEn ?? null} bioZh={profileRow?.bioZh ?? null} />
+      </main>
       <SiteFooter
         email={profileRow?.email ?? null}
         instagram={profileRow?.instagram ?? null}

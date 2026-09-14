@@ -75,9 +75,12 @@ export function Hero({ nameEn, nameZh, roleEn, roleZh, locationEn, locationZh, i
         {/* 第一段：水平線由左至右展開（0.8s） */}
         <div className="h-px w-40 origin-left bg-[#F2F3F4] motion-safe:scale-x-0 motion-safe:animate-[hero-line-expand_0.8s_ease-out_forwards]" />
 
-        {/* 第二段：姓名分行由下往上滑入，逐行延遲 0.15s */}
-        <div
-          className="flex flex-col items-center leading-none"
+        {/* 第二段：姓名分行由下往上滑入，逐行延遲 0.15s。用 <h1>——無障礙
+            排查批次抓到的：這是全站視覺上最大、語意上也最重要的標題
+            （設計師姓名），原本用 <div> 撐著，整個首頁沒有任何 <h1>，
+            螢幕閱讀器使用者用標題導覽完全找不到頁面主標題。 */}
+        <h1
+          className="flex flex-col items-center leading-none font-normal"
           style={{ fontSize: "clamp(5rem, 14vw, 13rem)", letterSpacing: "-0.02em" }}
         >
           <span className="block overflow-hidden motion-safe:opacity-0 motion-safe:animate-[hero-slide-up_0.6s_ease-out_0.8s_forwards]">
@@ -86,7 +89,7 @@ export function Hero({ nameEn, nameZh, roleEn, roleZh, locationEn, locationZh, i
           <span className="block overflow-hidden motion-safe:opacity-0 motion-safe:animate-[hero-slide-up_0.6s_ease-out_0.95s_forwards]">
             <span className={`lang-zh block ${langFontClass("zh", "display")}`}>{nameZh}</span>
           </span>
-        </div>
+        </h1>
 
         {/* 第三段：輔助資訊淡入 */}
         {hasSupportingInfo && (

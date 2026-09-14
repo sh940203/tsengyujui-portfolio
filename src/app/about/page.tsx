@@ -108,31 +108,35 @@ export default async function AboutPage() {
   return (
     <LangPageWrapper>
       <script type="application/ld+json" {...jsonLdScriptProps(jsonLd)} />
-      <AboutHeader
-        nameEn={profileRow?.nameEn ?? ""}
-        nameZh={profileRow?.nameZh ?? ""}
-        roleEn={profileRow?.roleEn ?? null}
-        roleZh={profileRow?.roleZh ?? null}
-        imageR2Key={profileRow?.aboutImageId ? (mediaMap.get(profileRow.aboutImageId) ?? null) : null}
-      />
-      <AboutBio bioEn={profileRow?.bioEn ?? null} bioZh={profileRow?.bioZh ?? null} />
-      <AwardsList
-        items={awardRows.map((a) => ({
-          id: a.id,
-          year: a.year,
-          titleEn: a.titleEn,
-          titleZh: a.titleZh,
-          resultEn: a.resultEn,
-          resultZh: a.resultZh,
-          certificateR2Key:
-            a.showCertificate && a.imageId ? (mediaMap.get(a.imageId) ?? null) : null,
-        }))}
-      />
-      <ContactSection
-        email={profileRow?.email ?? null}
-        instagram={profileRow?.instagram ?? null}
-        behance={profileRow?.behance ?? null}
-      />
+      {/* 無障礙排查批次抓到（Lighthouse landmark-one-main）：全站沒有
+          <main>，補在這裡——頁尾維持獨立的 <footer>，不包進來。 */}
+      <main>
+        <AboutHeader
+          nameEn={profileRow?.nameEn ?? ""}
+          nameZh={profileRow?.nameZh ?? ""}
+          roleEn={profileRow?.roleEn ?? null}
+          roleZh={profileRow?.roleZh ?? null}
+          imageR2Key={profileRow?.aboutImageId ? (mediaMap.get(profileRow.aboutImageId) ?? null) : null}
+        />
+        <AboutBio bioEn={profileRow?.bioEn ?? null} bioZh={profileRow?.bioZh ?? null} />
+        <AwardsList
+          items={awardRows.map((a) => ({
+            id: a.id,
+            year: a.year,
+            titleEn: a.titleEn,
+            titleZh: a.titleZh,
+            resultEn: a.resultEn,
+            resultZh: a.resultZh,
+            certificateR2Key:
+              a.showCertificate && a.imageId ? (mediaMap.get(a.imageId) ?? null) : null,
+          }))}
+        />
+        <ContactSection
+          email={profileRow?.email ?? null}
+          instagram={profileRow?.instagram ?? null}
+          behance={profileRow?.behance ?? null}
+        />
+      </main>
       <SiteFooter
         email={profileRow?.email ?? null}
         instagram={profileRow?.instagram ?? null}

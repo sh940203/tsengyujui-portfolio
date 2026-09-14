@@ -74,15 +74,32 @@ function findMedia(mediaOptions: RenderMediaOption[], id: string | null | undefi
   return mediaOptions.find((m) => m.id === id) ?? null;
 }
 
+/**
+ * SPEC.md §9.2「所有圖片需 alt 文字」——`media.altEn`/`altZh` 早就存在於
+ * 資料庫跟 admin 上傳表單，但這支共用渲染元件一直沒有接到，之前用
+ * `filename` 頂著（例如 `"DSC02109.jpeg"`），對螢幕閱讀器使用者完全沒有
+ * 意義，等於作品照片本身（這個網站的核心內容）長期沒有可用的 alt 文字。
+ * 依目前語言模式挑對應語言的 alt，缺該語言時 fallback 另一語言，兩者都
+ * 沒填才真的留空（等同裝飾性圖片處理，不是刻意放棄，是沒有資料可用）。
+ */
+function altTextFor(option: RenderMediaOption | null, lang: "en" | "zh"): string {
+  if (!option) return "";
+  const primary = lang === "en" ? option.altEn : option.altZh;
+  const secondary = lang === "en" ? option.altZh : option.altEn;
+  return primary ?? secondary ?? "";
+}
+
 function MediaBox({
   mediaOptions,
   id,
+  lang,
   className,
   style,
   sizes,
 }: {
   mediaOptions: RenderMediaOption[];
   id: string | null | undefined;
+  lang: "en" | "zh";
   className?: string;
   style?: CSSProperties;
   sizes?: string;
@@ -97,14 +114,14 @@ function MediaBox({
       {found ? (
         <Image
           src={found.r2Key}
-          alt={found.filename ?? ""}
+          alt={altTextFor(found, lang)}
           fill
           sizes={sizes ?? "50vw"}
           style={{ objectFit: "cover" }}
         />
       ) : (
         <div
-          className={`flex h-full items-center justify-center opacity-40 ${META_TEXT_CLASS} ${langFontClass("en", "ui")}`}
+          className={`flex h-full items-center justify-center opacity-60 ${META_TEXT_CLASS} ${langFontClass("en", "ui")}`}
         >
           （未選圖片）
         </div>
@@ -180,11 +197,13 @@ const RADIUS_PX: Record<string, number> = {
 function LensBlock({
   mediaOptions,
   mediaId,
+  lang,
   radius,
   followCursor,
 }: {
   mediaOptions: RenderMediaOption[];
   mediaId: string | null;
+  lang: "en" | "zh";
   radius: string;
   followCursor: boolean;
 }) {
@@ -206,9 +225,9 @@ function LensBlock({
       onMouseMove={followCursor ? handleMouseMove : undefined}
       onMouseLeave={followCursor ? () => setPos(null) : undefined}
     >
-      <MediaBox mediaOptions={mediaOptions} id={mediaId} className="absolute inset-0 h-full w-full opacity-30" />
+      <MediaBox mediaOptions={mediaOptions} lang={lang} id={mediaId} className="absolute inset-0 h-full w-full opacity-30" />
       <div className="pointer-events-none absolute inset-0" style={{ clipPath }}>
-        <MediaBox mediaOptions={mediaOptions} id={mediaId} className="relative h-full w-full" />
+        <MediaBox mediaOptions={mediaOptions} lang={lang} id={mediaId} className="relative h-full w-full" />
       </div>
     </div>
   );
@@ -242,7 +261,7 @@ export function BlockRenderer({
               : "hidden";
       return (
         <div className={`relative w-full ${heightClass}`}>
-          <MediaBox mediaOptions={mediaOptions} id={c.mediaId as string | null} className="absolute inset-0 h-full w-full" sizes="100vw" />
+          <MediaBox mediaOptions={mediaOptions} lang={lang} id={c.mediaId as string | null} className="absolute inset-0 h-full w-full" sizes="100vw" />
           {overlayPosition !== "none" && (
             <div className={`relative z-10 flex h-full w-full p-8 font-medium ${overlayClass}`}>
               <span
@@ -262,7 +281,7 @@ export function BlockRenderer({
       const caption = (c.caption as { en: string; zh: string }) ?? { en: "", zh: "" };
       return (
         <div className={`mx-auto flex flex-col gap-2 ${SINGLE_WIDTH_CLASS[width]}`}>
-          <MediaBox mediaOptions={mediaOptions} id={c.mediaId as string | null} className="relative aspect-[3/4] w-full" />
+          <MediaBox mediaOptions={mediaOptions} lang={lang} id={c.mediaId as string | null} className="relative aspect-[3/4] w-full" />
           <p className={`opacity-70 ${BODY_TEXT_CLASS}`}>
             <Lang {...caption} role="ui" />
           </p>
@@ -278,9 +297,10 @@ export function BlockRenderer({
         ratio === "1:1" ? "aspect-square" : ratio === "3:2" ? "aspect-[3/2]" : "aspect-[2/3]";
       return (
         <div className={`flex w-full ${GAP_CLASS[gap]}`}>
-          <MediaBox mediaOptions={mediaOptions} id={c.leftMediaId as string | null} className={`relative flex-1 ${aspect}`} />
+          <MediaBox mediaOptions={mediaOptions} lang={lang} id={c.leftMediaId as string | null} className={`relative flex-1 ${aspect}`} />
           <MediaBox
             mediaOptions={mediaOptions}
+            lang={lang}
             id={c.rightMediaId as string | null}
             className={`relative flex-1 ${aspect}`}
             style={offset ? { marginTop: "10%" } : undefined}
@@ -298,7 +318,7 @@ export function BlockRenderer({
             <EmptyMediaLabel lang={lang} />
           ) : (
             mediaIds.map((id, i) => (
-              <MediaBox key={id + i} mediaOptions={mediaOptions} id={id} className="relative aspect-square flex-1" />
+              <MediaBox key={id + i} mediaOptions={mediaOptions} lang={lang} id={id} className="relative aspect-square flex-1" />
             ))
           )}
         </div>
@@ -327,6 +347,7 @@ export function BlockRenderer({
       const imageBox = (
         <MediaBox
           mediaOptions={mediaOptions}
+          lang={lang}
           id={c.mediaId as string | null}
           className={`relative aspect-[4/5] ${IMAGE_WIDTH_CLASS[imageWidth]}`}
         />
@@ -365,6 +386,7 @@ export function BlockRenderer({
               <MediaBox
                 key={id + i}
                 mediaOptions={mediaOptions}
+                lang={lang}
                 id={id}
                 className={`relative aspect-square shrink-0 ${ITEM_HEIGHT_CLASS[itemHeight]}`}
               />
@@ -390,6 +412,7 @@ export function BlockRenderer({
               <MediaBox
                 key={id + i}
                 mediaOptions={mediaOptions}
+                lang={lang}
                 id={id}
                 className="relative aspect-[3/4] w-32"
                 style={layout === "scatter" ? { transform: `rotate(${(i % 5) - 2}deg)` } : undefined}
@@ -424,6 +447,7 @@ export function BlockRenderer({
         <LensBlock
           mediaOptions={mediaOptions}
           mediaId={c.mediaId as string | null}
+          lang={lang}
           radius={radius}
           followCursor={followCursor}
         />
@@ -436,9 +460,10 @@ export function BlockRenderer({
       const isVertical = axis === "vertical";
       return (
         <div className={`flex w-full ${isVertical ? "flex-row" : "flex-col"} ${GAP_CLASS[gap]}`}>
-          <MediaBox mediaOptions={mediaOptions} id={c.mediaId as string | null} className="relative aspect-square flex-1" />
+          <MediaBox mediaOptions={mediaOptions} lang={lang} id={c.mediaId as string | null} className="relative aspect-square flex-1" />
           <MediaBox
             mediaOptions={mediaOptions}
+            lang={lang}
             id={c.mediaId as string | null}
             className="relative aspect-square flex-1"
             style={{ transform: isVertical ? "scaleX(-1)" : "scaleY(-1)" }}
@@ -452,9 +477,12 @@ export function BlockRenderer({
   }
 }
 
+// opacity-60 不是 opacity-40——這裡跟 MediaBox 的「（未選圖片）」一樣，
+// 原本 40 在 dark/void 主題只有 ~3.3:1，META_TEXT_CLASS 字級小，
+// WCAG AA 一般文字門檻 4.5:1 沒過（無障礙排查批次抓到，見 HANDOFF.md）。
 function EmptyMediaLabel({ lang }: { lang: "en" | "zh" }) {
   return (
-    <span className={`opacity-40 ${META_TEXT_CLASS} ${langFontClass(lang, "ui")}`}>
+    <span className={`opacity-60 ${META_TEXT_CLASS} ${langFontClass(lang, "ui")}`}>
       （尚未選圖片）
     </span>
   );
@@ -465,15 +493,33 @@ export function CollectionBlocksRender({
   blocks,
   mediaOptions,
   lang,
+  titleEn,
+  titleZh,
 }: {
   theme: RenderTheme;
   blocks: RenderBlock[];
   mediaOptions: RenderMediaOption[];
   lang: "en" | "zh";
+  /**
+   * 系列標題,只用來渲染一個視覺隱藏的 `<h1>`（無障礙排查批次抓到：
+   * 區塊系統本身沒有固定的「標題」欄位——設計師可以自由編排任何區塊
+   * 組合,不像多數網站有寫死的標題欄位——這代表 `/work/[slug]` 原本
+   * 整頁沒有任何 `<h1>`,螢幕閱讀器使用者用標題導覽找不到頁面主標題。
+   * 選擇視覺隱藏而不是真的顯示出來,是因為視覺標題已經由設計師透過
+   * 區塊自由編排決定（例如 statement 區塊、full-bleed 疊字），不該由
+   * 這支共用元件蓋過去）。可選——admin 即時預覽目前沒有接這兩個
+   * prop,不影響預覽現有行為。
+   */
+  titleEn?: string;
+  titleZh?: string | null;
 }) {
   const themeVars = THEME_VARS[theme];
   return (
-    <div
+    // <main>——無障礙排查批次抓到（Lighthouse `landmark-one-main`）：
+    // 全站沒有任何 <main> landmark，螢幕閱讀器使用者無法跳過重複的頁首
+    // 直接到主要內容。這裡是 `/work/[slug]` 唯一的主要內容區塊，改
+    // <div> 為 <main> 就能滿足，不用另外包一層。
+    <main
       data-lang={lang}
       className={`${langFontVariables} flex min-h-screen flex-col ${BODY_TEXT_CLASS} ${langFontClass(lang, "ui")}`}
       style={{
@@ -488,12 +534,18 @@ export function CollectionBlocksRender({
         paddingBottom: "var(--space-block)",
       }}
     >
+      {titleEn && (
+        <h1 className="sr-only">
+          {titleEn}
+          {titleZh ? ` / ${titleZh}` : ""}
+        </h1>
+      )}
       {blocks.length === 0 && (
         <p className={`opacity-50 ${BODY_TEXT_CLASS}`}>這個系列還沒有任何區塊。</p>
       )}
       {blocks.map((block) => (
         <BlockRenderer key={block.id} block={block} mediaOptions={mediaOptions} lang={lang} />
       ))}
-    </div>
+    </main>
   );
 }

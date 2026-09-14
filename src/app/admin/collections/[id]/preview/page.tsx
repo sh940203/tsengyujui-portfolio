@@ -44,7 +44,15 @@ export default async function CollectionPreviewPage({
       .from(blocks)
       .where(eq(blocks.collectionId, id))
       .orderBy(asc(blocks.sortOrder)),
-    db.select({ id: media.id, r2Key: media.r2Key, filename: media.filename }).from(media),
+    db
+      .select({
+        id: media.id,
+        r2Key: media.r2Key,
+        filename: media.filename,
+        altEn: media.altEn,
+        altZh: media.altZh,
+      })
+      .from(media),
   ]);
 
   return (

@@ -38,7 +38,14 @@ export default async function AdminCollectionBlocksPage({
   const [blockRows, mediaRows] = await Promise.all([
     db.select().from(blocks).where(eq(blocks.collectionId, id)).orderBy(asc(blocks.sortOrder)),
     db
-      .select({ id: media.id, r2Key: media.r2Key, filename: media.filename, kind: media.kind })
+      .select({
+        id: media.id,
+        r2Key: media.r2Key,
+        filename: media.filename,
+        kind: media.kind,
+        altEn: media.altEn,
+        altZh: media.altZh,
+      })
       .from(media),
   ]);
 

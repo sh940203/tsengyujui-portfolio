@@ -277,7 +277,13 @@ export function BlockListClient({
     const message: PreviewUpdateMessage = {
       source: PREVIEW_UPDATE_SOURCE,
       theme,
-      mediaOptions: mediaOptions.map((m) => ({ id: m.id, r2Key: m.r2Key, filename: m.filename })),
+      mediaOptions: mediaOptions.map((m) => ({
+        id: m.id,
+        r2Key: m.r2Key,
+        filename: m.filename,
+        altEn: m.altEn ?? null,
+        altZh: m.altZh ?? null,
+      })),
       blocks: items.map((b) => ({
         id: b.id,
         type: b.type as BlockType,

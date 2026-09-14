@@ -75,6 +75,8 @@ function ConsentGate({
 export function WorkPageClient({
   slug,
   theme,
+  titleEn,
+  titleZh,
   requiresConsent,
   consentNoteEn,
   consentNoteZh,
@@ -83,6 +85,8 @@ export function WorkPageClient({
 }: {
   slug: string;
   theme: RenderTheme;
+  titleEn: string;
+  titleZh: string | null;
   requiresConsent: boolean;
   consentNoteEn: string | null;
   consentNoteZh: string | null;
@@ -119,7 +123,14 @@ export function WorkPageClient({
       >
         {lang.toUpperCase()}
       </button>
-      <CollectionBlocksRender theme={theme} blocks={blocks} mediaOptions={mediaOptions} lang={lang} />
+      <CollectionBlocksRender
+        theme={theme}
+        blocks={blocks}
+        mediaOptions={mediaOptions}
+        lang={lang}
+        titleEn={titleEn}
+        titleZh={titleZh}
+      />
     </>
   );
 }

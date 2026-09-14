@@ -90,7 +90,13 @@ export default async function WorkPage({
   const [mediaRows, profileRow, image] = await Promise.all([
     neededMediaIds.length > 0
       ? db
-          .select({ id: media.id, r2Key: media.r2Key, filename: media.filename })
+          .select({
+            id: media.id,
+            r2Key: media.r2Key,
+            filename: media.filename,
+            altEn: media.altEn,
+            altZh: media.altZh,
+          })
           .from(media)
           .where(inArray(media.id, neededMediaIds))
       : Promise.resolve([]),
@@ -116,6 +122,8 @@ export default async function WorkPage({
       <WorkPageClient
         slug={slug}
         theme={row.theme}
+        titleEn={row.titleEn}
+        titleZh={row.titleZh}
         requiresConsent={row.requiresConsent}
         consentNoteEn={row.consentNoteEn}
         consentNoteZh={row.consentNoteZh}

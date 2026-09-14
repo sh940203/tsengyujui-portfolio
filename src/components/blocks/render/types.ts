@@ -15,6 +15,8 @@ export interface RenderMediaOption {
   id: string;
   r2Key: string;
   filename: string | null;
+  altEn: string | null;
+  altZh: string | null;
 }
 
 export interface RenderBlock {

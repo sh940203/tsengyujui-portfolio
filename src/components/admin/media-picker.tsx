@@ -18,6 +18,8 @@ export interface MediaOption {
   r2Key: string;
   filename: string | null;
   kind: string;
+  altEn?: string | null;
+  altZh?: string | null;
 }
 
 function Thumb({ option, selected }: { option: MediaOption; selected: boolean }) {
