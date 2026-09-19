@@ -24,3 +24,10 @@ export interface RenderBlock {
   type: BlockType;
   config: Record<string, unknown>;
 }
+
+/** SPEC.md §4.3 系列間導航（上一個/下一個系列）用的最小連結形狀。 */
+export interface AdjacentCollectionLink {
+  slug: string;
+  titleEn: string;
+  titleZh: string | null;
+}

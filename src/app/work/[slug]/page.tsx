@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { inArray } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { extractMediaIds } from "@/lib/blocks/publish";
+import { getAdjacentCollections } from "@/lib/collections/get-adjacent-collections";
 import { getPublishedCollection } from "@/lib/collections/get-published-collection";
 import { db } from "@/lib/db/client";
 import { media } from "@/lib/db/schema";
@@ -87,7 +88,7 @@ export default async function WorkPage({
   // `where`，會把其他系列（含草稿）的 `r2Key`/`filename` 也一起撈出來，
   // 見 `extractMediaIds()` 註解跟 SEO 批次全專案排查的結論。
   const neededMediaIds = extractMediaIds(snapshot);
-  const [mediaRows, profileRow, image] = await Promise.all([
+  const [mediaRows, profileRow, image, adjacent] = await Promise.all([
     neededMediaIds.length > 0
       ? db
           .select({
@@ -102,6 +103,7 @@ export default async function WorkPage({
       : Promise.resolve([]),
     getProfile(),
     resolveOgImageUrl(row.ogImageId ?? row.coverImageId),
+    getAdjacentCollections(slug),
   ]);
 
   const jsonLd = buildCreativeWorkJsonLd({
@@ -124,6 +126,9 @@ export default async function WorkPage({
         theme={row.theme}
         titleEn={row.titleEn}
         titleZh={row.titleZh}
+        year={row.year}
+        category={row.category}
+        pieceCount={row.pieceCount}
         requiresConsent={row.requiresConsent}
         consentNoteEn={row.consentNoteEn}
         consentNoteZh={row.consentNoteZh}
@@ -133,6 +138,8 @@ export default async function WorkPage({
           config: block.config as Record<string, unknown>,
         }))}
         mediaOptions={mediaRows}
+        prev={adjacent.prev}
+        next={adjacent.next}
       />
     </>
   );

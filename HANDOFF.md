@@ -3,7 +3,7 @@
 > 交接文件，供下一個 session 直接接手，不需重新翻對話紀錄。
 > 完整規格見 [SPEC.md](./SPEC.md)。本文件只記錄「規格書之外」的現況、決策與驗證結果。
 >
-> 產生時間：2026-09-13（2026-09-14 更新：即時預覽 iframe、草稿/發布機制、發布狀態樂觀更新、共用渲染元件搬遷 + 設計系統、lens 互動修復、`/work/[slug]` 前台頁面、SPEC §6 語言系統、首頁、Hero 背景輪播 + 精選照後台管理、關於頁、內容提示層、SEO/AEO/GEO 收尾、全專案「select 整列」洩漏排查、git 歷史/GitHub/Vercel 上線、無障礙+效能稽核皆已完成）
+> 產生時間：2026-09-13（2026-09-14 更新：即時預覽 iframe、草稿/發布機制、發布狀態樂觀更新、共用渲染元件搬遷 + 設計系統、lens 互動修復、`/work/[slug]` 前台頁面、SPEC §6 語言系統、首頁、Hero 背景輪播 + 精選照後台管理、關於頁、內容提示層、SEO/AEO/GEO 收尾、全專案「select 整列」洩漏排查、git 歷史/GitHub/Vercel 上線、無障礙+效能稽核皆已完成；2026-09-15 更新：三系列切公開發布、金點新秀證書上線、SPEC §10.4 大部分項目收斂；2026-09-16～09-19 更新（Phase 6）：EMAIL_SERVER/EMAIL_FROM（Resend）與 Vercel Preview 環境變數皆已由業主補齊、UI/UX 精修批次（導航、圖片顯示、淺色深色切換、統計數字區塊、系列頁釘住標題、首頁 Hero 雙欄同系列配對輪播、後台配對預覽、本機測試登入捷徑）——**本機驗證過，尚未 git push**，見 §1.1）
 >
 > **上線網址：https://tsengyujui-portfolio.vercel.app**（GitHub：私有 repo `sh940203/tsengyujui-portfolio`）
 
@@ -11,9 +11,9 @@
 
 ## 1. 專案現況總覽
 
-**目前位置：Phase 3（Block Editor）、Phase 4（前台）、Phase 5（SEO/AEO/GEO 收尾 + 無障礙 + 效能，SPEC §13 項目 27–29）全部完成。專案已經正式上線到 Vercel（https://tsengyujui-portfolio.vercel.app ，GitHub 私有 repo `sh940203/tsengyujui-portfolio`）。三個系列目前 `visibility` 都是 `draft`，業主需要決定何時切換成 `public`（見 §3.2）——只要切了 `public` 並發布過，首頁/系列頁/sitemap/llms.txt 會自動一起更新（生產環境經 Git 整合，push 到 `main` 會自動重新部署）。Lighthouse 對正式站實測：首頁/關於頁 Performance 94–99、Accessibility 100、Best Practices 96、SEO 100，全部超過 SPEC §9.3 目標。**
+**目前位置：Phase 3（Block Editor）、Phase 4（前台）、Phase 5（SEO/AEO/GEO 收尾 + 無障礙 + 效能，SPEC §13 項目 27–29）全部完成。三個系列已於 2026-09-15（第十二批）切成 `public` 並發布，正式站三個系列頁、首頁列表、sitemap/llms.txt 皆已可公開瀏覽（見 §3.1、§1.1 第十二批）。專案已經正式上線到 Vercel（https://tsengyujui-portfolio.vercel.app ，GitHub 私有 repo `sh940203/tsengyujui-portfolio`）。⚠️ 第十二批的程式碼與文件變更（淺色主題對比度修復、SPEC/HANDOFF 更新）目前只在本機驗證，尚未 `git push`，等業主同意後才推上去。DB 端的 visibility/發布/證書變更已直接寫入生產 Turso，但**目前只有 `curl` 正式站 `/work/[slug]` 實測會拿到新的內容**（這幾頁沒有 `generateStaticParams`，是逐請求動態渲染，直接反映 DB 最新狀態）；**首頁 `/` 跟 `sitemap.xml` 這批 curl 復驗過仍是舊的（系列列表是空的、sitemap 沒有 `/work/*` 網址）**——這兩者是建置時期靜態產生的頁面，跟 HANDOFF §1.1 第八批 bug 3 抓到的成因一樣：這批是直接寫 DB，沒有經過任何會呼叫 `revalidatePath` 的 server action，正式站這個部署的 Full Route Cache 不會自動感知到 DB 變了。等業主同意這批改動、真的 `git push` 觸發下一次部署時，新的 build 會用當下 DB 的最新資料重新產生首頁/sitemap，屆時會自動一起變成最新——不需要額外操作，但**在那之前，正式站首頁看起來還是舊的空狀態，是預期中的暫時落差，不是這批操作失敗**。Lighthouse 對正式站實測：首頁/關於頁 Performance 94–99、Accessibility 100、Best Practices 96、SEO 100，全部超過 SPEC §9.3 目標。**
 
-**上線前還差的東西（見 §1.1 第十批）**：`EMAIL_SERVER`/`EMAIL_FROM`（真實 SMTP 憑證，業主提供，Magic Link 登入在正式站目前還不能用，不影響公開瀏覽）、Preview 環境變數（Vercel CLI 這版有 bug，需要業主自己到 dashboard 補）、Preview 專用的獨立 Turso/R2（SPEC §1.2 建議，目前跟 Production 共用）。
+**上線前還差的東西**：~~`EMAIL_SERVER`/`EMAIL_FROM`~~、~~Preview 環境變數~~ 兩項業主都已經自行補齊（Resend 用於 Production、Gmail 用於本機 `.env.local`；Preview 透過 Vercel Dashboard 手動填入，含一組獨立產生的 Preview 專用 `AUTH_SECRET`）——只剩 **Preview 專用的獨立 Turso/R2**（SPEC §1.2 建議，目前跟 Production 共用，非必要）。
 
 ### 1.1 已完成並實測驗證的項目
 
@@ -465,6 +465,57 @@ Phase 4 主要頁面（首頁、系列內頁）到這裡都完成了。SPEC.md �
 
 兩批都遠遠超過 SPEC §9.3 的目標（Performance ≥90、Accessibility ≥95）。Performance 剩下的扣分項（`unused-css-rules`/`unused-javascript`/`render-blocking-insight`/`network-dependency-tree` 等）是 Next.js/Tailwind/next/font 框架層級的一般性指標，沒有具體到「這裡有個可以馬上修的東西」，這批沒有繼續往下挖；`inspector-issues`（Content Security Policy）是 CSP 目前刻意維持 Report-Only 模式的預期副作用，SPEC §12.12 上線前檢查清單本來就把「CSP 無誤報後改強制模式」列成獨立的上線前步驟，不是這批要處理的。
 
+**Phase 5 — 第十二批：三系列切公開、SPEC §10.4 收尾、Vercel Preview env 再嘗試（2026-09-15）**
+
+業主直接下指示要處理 §5「待業主確認清單」的所有項目，這批一次做完：
+
+1. **三個系列 `visibility` 全部切成 `public`**——`pure-land`/`x-venom` 從未發布過（`publishedSnapshot` 原本是 `null`），切之前先用既有的 `buildSnapshot()`/`serializeSnapshot()`（`src/lib/blocks/publish.ts`，跟後台「發布」按鈕同一套邏輯）把兩者目前的草稿 blocks（10 筆／7 筆）發布成快照，再把三個系列的 `visibility` 一起改成 `public`；`cumedy-night` 已經有發布過的快照且跟草稿一致，只改 `visibility`，沒有重新發布。三個系列都是直接對 Turso 生產資料庫操作（跟本機 `.env.local` 用同一顆資料庫）。本機 `pnpm dev` 立刻反映（`curl` 復驗 `/work/cumedy-night`/`/work/pure-land`/`/work/x-venom` 皆回 200，瀏覽器截圖確認首頁系列列表、三個系列頁都正確渲染）；**但正式站 vercel.app 目前只有 `/work/[slug]` 立刻反映（動態渲染），首頁跟 `sitemap.xml` 仍是舊的靜態快照**——這是直接寫 DB、沒有觸發任何 `revalidatePath` 的預期結果（跟第八批 bug 3 同一個成因），要等下一次真正 `git push` 觸發的部署才會一起更新，詳見上方第 1 節的說明段落。**注意：這批只是「切公開」，Cumedy Night 的 blocks 內容還是原本 seed 時期用少數幾張佔位圖片的版本，見下方第 3 點——業主之後在後台重新編排完，記得要再按一次「發布」，快照才會更新。**
+2. **金點新秀設計獎證書公開展示**——業主決定要公開（AskUserQuestion 詢問後的選擇）。證書圖（`服飾設計/獎狀/金點新秀設計獎.jpg`）**沒有**走前台自動化的 `MediaMultiPicker`/admin UI 手動點擊，而是寫一支一次性腳本直接呼叫後台上傳流程背後同一套 pipeline（`generateAndUploadVariants()`，`src/lib/media/generate-variants.ts`）——理由：Auth.js Magic Link 在正式站還不能用（見 §1.1 第十批已知缺口），本機也沒有走過完整的信箱登入流程去點後台的拖拉上傳，直接呼叫底層 pipeline 函式能保證跟 UI 上傳走的是同一段程式碼、同一套 sharp 變體生成／R2 兩個 bucket／EXIF 清除邏輯，不是另外發明一條路徑。上傳後的 media 列（`kind: misc`、`collectionId: null`，跟一般後台上傳的預設值一致）直接寫入該筆 award 的 `imageId`，同時把 `showCertificate` 設成 `true`。瀏覽器截圖確認 `/about` 頁面證書縮圖正確顯示（含簽名與官印，業主已經知情這代表的意義——SPEC §10.4 原文就有講清楚公開展示的後果）。
+3. **內容提示層持久化範圍**——AskUserQuestion 詢問業主，選擇**維持現狀**（每次開新分頁或重新造訪都要再按一次進入），不是「同意一次就不用再看到」。沒有程式碼改動。SPEC.md §10.4 對應項目已標記為已確認。
+4. **淺色主題次要語言對比度**——這項沒有另外詢問業主（SPEC 原文自己就提出了兩個選項，選其中風險更低、對現有頁面零副作用的那個直接做掉）：`theme: light` 系列的 `.lang-en`/`.lang-zh` 次要語言透明度另外給 `0.65`（原本全站統一 `0.55`，`dark`/`void` 主題與首頁/關於頁不受影響，繼續用規格書原文的 `0.55`）。實作：`CollectionBlocksRender` 的 `<main>` 新增 `data-theme={theme}` 屬性（`src/components/blocks/render/block-render.tsx`），`globals.css` 加 `[data-theme="light"][data-lang=...] .lang-*` 覆寫規則。**沒有肉眼實測**——目前三個系列都還是 `dark` 主題，沒有實際頁面在用 `light`，這個修復目前是「鋪好但沒有實地驗證過視覺」的狀態，`tsc`/`eslint` 通過，CSS 特異性數過一遍確認新規則的選擇器數量足以覆蓋原本的規則。之後如果有系列真的選用 `light` 主題，建議用 Lighthouse 或 DevTools 對比度工具實測一次。
+5. **statement 區塊暫定字級**——業主指示可以推進、沒有提供新數字，維持工程端上一批（Phase 4 第一批）內插的既有值不變，SPEC.md §10.4 對應項目標記為維持現值（不是「業主已核准這些精確數字」，只是「沒有更好的資訊，先不擋著，之後單純是改常數」）。
+6. **Cumedy Night 成品照精選（33 張收斂到 8–12 張）**——業主選擇自己去後台 Block Editor 挑選編排，這批**沒有**代為決定要用哪幾張、也沒有改動任何 blocks。SPEC.md §10.4 已更新標記為「業主自行處理」。
+7. **Vercel Preview 環境變數——CLI bug 復現，仍未解決**：這批重新嘗試 `vercel env add <name> preview --value <value> --yes`（HANDOFF 第十批記錄過的失敗指令），Vercel CLI 54.14.0 回傳的 `action_required`/`git_branch_required` 錯誤訊息本身建議的下一步指令，逐字照做後**遞迴指回同一個指令**，換句話說 CLI 給的「修復建議」本身就是造成錯誤的那個指令，確認不是操作方式的問題，是這版 CLI 真的壞了（用 `--value` 直接傳值、改用 stdin 管道兩種方式都復現同樣結果）。試過 `--force` 這個選項，但這個動作被系統的自動模式分類器擋下（歸類成「Secret-Store Writes」風險操作，需要更明確的授權），沒有繼續嘗試更激進的繞過方式，改成準備好所有變數值跟操作步驟，請業主自己到 Vercel Dashboard 手動點過一次（步驟見這次對話的回覆，不重複寫進本文件——都是操作指引，不是專案決策或程式碼變更，不算這份文件要記錄的範疇）。順便產生了一組全新的 `AUTH_SECRET`（openssl 亂數，只給 Preview 環境用，沒有沿用 Production 或本機那組，符合 SPEC §1.2「三個環境務必各自獨立」的規則）。
+8. **EMAIL_SERVER/EMAIL_FROM 設定方式**——這批只在對話中直接教學（SMTP 憑證怎麼取得、`EMAIL_SERVER` 連線字串格式），沒有實際去申請或設定任何服務，因為要用哪家 SMTP 供應商、寄件位址網域是業主自己的決定，不是工程端能代辦的部分。
+
+**測試方法**：全部針對本機 `pnpm dev`（`localhost:3050`，接的是同一顆生產 Turso 資料庫）截圖驗證；`tsc --noEmit`、`eslint src` 全專案通過；`git status` 確認只有 `src/app/globals.css`、`src/components/blocks/render/block-render.tsx` 兩個檔案異動（加上這次的 SPEC.md/HANDOFF.md 文件更新），沒有動到其他既有邏輯。**這批完全沒有 `git push`**——業主要求先在本機看過所有結果，本人同意後才推上 GitHub（會觸發 Vercel 重新部署）。
+
+**Phase 6 — UI/UX 精修批次（2026-09-16 ～ 09-19，尚未 git push）**
+
+業主要求前後台一起雕琢 UI/UX，這批橫跨好幾個對話回合累積而成，統一在這裡記錄。**全程沒有 push**，本機驗證完就等業主看過決定。
+
+1. **UI/UX 稽核抓到兩個真實 bug，已修**：
+   - 首頁系列列表的雙語標題窄螢幕換行時，中文緊貼在英文最後一個字後面讀不清楚（例如「Land在最後的淨土上孤獨」）——`.series-title-lang` 範圍內加 `margin-left`，不動 `Lang` 元件全站預設樣式
+   - EN/ZH 語言切換鈕觸控範圍只有 32×25px，全站使用頻率最高的元件卻不好按——改成 `min-h-11 min-w-11`（44×44px）。順便發現這顆按鈕被複製貼上了三份（首頁/關於頁、系列頁、admin 預覽各一份），抽成共用元件 `src/components/lang-switch-button.tsx`（`SWITCH_BUTTON_BASE_CLASS` 給後續 `ThemeSwitchButton` 共用同一顆按鈕視覺基底）
+
+2. **圖片顯示：`cover` 改預設 `contain`**——業主指出照片被固定長寬比框架裁切，看不到服裝完整效果。`MediaBox`（`block-render.tsx`）新增 `fit` 參數，預設 `contain`。**刻意保留 `cover` 當例外的三種區塊**（改了反而會壞掉，不是全部一視同仁）：`full-bleed`（語意是滿版出血，不裁切就不貼齊邊緣）、`mirror`（兩張鏡射要精確填滿正方形才能在中線接合）、`lens`（清晰圓圈跟暗化背景要疊在同一個框裡對齊）。首頁系列列表縮圖維持 `cover`（導覽用索引縮圖，不是作品完整呈現的地方）。
+
+3. **全站新增導航（`src/components/site-nav.tsx`）**——UI/UX 稽核抓到全站真的沒有任何導航（沒 `<nav>`、頁尾只有 email/IG、系列頁之間也沒有上一個/下一個）：
+   - 左上角固定 `SiteNav`，跟右上角語言切換鈕對稱：首頁顯示 WORK（錨點捲動到 `#series`）/ BIO（錨點捲動到 `#bio`）/ ABOUT（換頁去 `/about`）；系列頁顯示 INDEX / ABOUT；關於頁只顯示 INDEX
+   - 系列頁最下方補上「上一個／下一個系列」（SPEC §4.3 原本就要求但一直沒做）——`src/lib/collections/get-adjacent-collections.ts` 的 `getAdjacentCollections()`，只依 `visibility === 'public'` 的順序算，只選需要的三個欄位（延續 SEO 批次「不要 select 整列」的原則）
+   - 這批也在 `SiteNav` 補了跟語言切換鈕同樣的觸控範圍教訓（原本每個連結只有 15px 高，加 `py-2.5` 撐到 35px）
+
+4. **首頁/關於頁新增淺色/深色切換**（`ThemeSwitchButton`，跟語言切換鈕疊成同一叢右上角按鈕）——**這是使用者偏好，跟系列頁的 `theme`（dark/light/void，設計師依作品內容決定）是兩件獨立的事**，系列頁完全不受影響。實作：`globals.css` 新增 `--ui-bg`/`--ui-fg`/`--ui-muted` 三個 CSS 變數（`[data-ui-theme="light"]` 覆寫），`home-sections.tsx`/`about-sections.tsx`/`site-footer.tsx` 原本寫死的 hex 色碼全部改成 `var(--ui-*)`。Hero 的滿版背景照片刻意不跟著切換（文字疊在照片上需要固定的深色遮罩維持可讀性，跟系統偏好無關）。
+
+5. **系列頁新增統計數字區塊**（`CollectionStats`，業主指定參考 aoiofficial.com 商品頁的「大數字+小標籤」呈現）——顯示 `year`/`pieceCount`/`category`（`collections` 表既有欄位，不是新資料模型），固定版位在標題之後、第一個設計區塊之前，不是 Block Editor 第 13 種可拖曳區塊。三個欄位任何一個有值才顯示對應項目，全部沒有就整段不渲染。**目前三個系列這三個欄位都還是 `null`（SPEC §10.3 待業主提供），這個區塊現在不會顯示任何東西**——用臨時測試值驗證過正確運作（`2026`/`Year 年份`、`8`/`Pieces 件數`、`Womenswear`/`Category 類型`），測完已清空。只接公開前台，admin 預覽 iframe 目前沒有查這三個欄位。
+
+6. **系列頁新增「捲動釘住標題」**（`PinnedTitle`，業主指定參考 aoiofficial.com Salon 頁面手法）——系列標題超大字級、8% 透明度 `position: fixed` 固定在畫面正中央，`z-index: -1` 讓一般文件流的區塊圖片自然疊在上面遮住，只有留白處才透出文字，不需要每個區塊自己處理遮擋，也不需要 JS scroll listener。
+
+7. **首頁 Hero 大改版**（`src/app/hero.tsx`，業主指定參考 aoiofficial.com 首頁）——這是這批影響最大的改動，經過兩輪迭代：
+   - **第一輪**：從「文字疊在滿版背景輪播上」改成左右兩欄，左欄純文字面板（純色背景）、右欄輪播
+   - **第二輪（業主看過第一輪後要求）**：改成**左右兩欄同時輪播**，且**業主明確要求「左右的照片要是同系列的」**——兩欄由同一個 `index`/`prevIndex` 狀態驅動，各自顯示同一個 `HeroPair` 的 `left`/`right`，保證任何時刻兩欄都屬於同一個系列。文字疊層改成蓋在左欄圖片上（不再是獨立純色面板），**靠左對齊**（手機/桌機都靠左，不是只有桌機），用 `mix-blend-mode: overlay` 做「文字跟著背景照片明暗變化」的半透明效果（業主提供參考截圖是這種效果，不是單純調低 opacity）
+   - 轉場效果：「模糊快閃」（`hero-flicker-enter`/`hero-flicker-exit` keyframes，`globals.css`）——換圖瞬間新圖從模糊+放大淡入、舊圖同時模糊+縮小淡出，兩者時間軸重疊，比單純 crossfade 更有動態感。沒有引入 framer-motion（專案目前其實沒裝這個套件，儘管 SPEC 技術棧欄位有列），沿用純 CSS `@keyframes` 手法
+   - **後端配對邏輯**（`src/lib/media/featured.ts`）：`getHomeCarouselPairs()` 取代原本攤平單一圖片池的 `getHomeCarouselImages()`。**業主追問「精選照選多張才要真的有用」**（原本邏輯只吃精選清單第 1、2 張，選再多也沒用）——改成**依序兩兩一組湊出多對**（第 1、2 張第一對，第 3、4 張第二對……），選得越多對，該系列在輪播裡出現的組合越豐富；奇數張時最後一張落單直接丟棄，不會混到下一個系列。Fallback 數量從 3 調成 4（湊對用，3 張永遠浪費最後一張）。用真實資料庫驗證過：三個系列目前分別湊出 6/12/9 對（共 27 對），且逐一確認每對的 `left`/`right` 都屬於同一個系列（z-index 檢查法：抓 DOM 裡 z-index=2 的「目前顯示」圖片，確認兩張都是同一個 `r2Key` 前綴）
+   - **後台編輯器同步更新**：業主指出「選了多張看不出哪張是左哪張是右」——`FeaturedPhotosForm` 新增 `PairPreview`，把已選照片依序兩兩分組顯示，明確標「第 N 對」＋「左 Left / 右 Right」，落單的最後一張灰階標示「不會使用」。實測用 pure-land 系列（13 張精選照）確認正確分組成 6 對 + 1 落單。
+
+8. **ASCII 美學效果——做了又整個撤掉**：業主一度要求加入 ASCII 藝術風格（照片即時轉字元畫），技術上做出來了（`/api/ascii-source` 同源代理繞過 R2 bucket 沒有 CORS header 的限制、canvas 讀像素轉字元、疊在首頁系列列表 hover 效果），業主看過後決定取消，**已完整移除**（`src/app/api/ascii-source/`、`src/components/ascii-image.tsx`、`src/app/series-card.tsx` 三個檔案都刪除，`home-sections.tsx` 還原成原本的內聯寫法）。記錄這件事是避免以後有人以為這個功能還在或漏刪。
+
+9. **參考網站設計分析**——業主先後給了兩個參考站要求逆向分析設計手法：Wix marketplace 範本 "Bernard"（攝影師作品集）跟 aoiofficial.com（精品時尚電商）。分析內容（字體/排版/圖形/動畫/互動）都只在對話中討論，沒有寫進任何文件——**明確排除複製版權內容**：不採用對方的具體文案、品牌名稱、示範照片，只借用版面手法/互動模式（這些不受著作權保護），套用到業主自己的內容上。這兩次分析促成了上面第 3/4/5/6/7 項的大部分靈感來源。
+
+10. **後台新增本機測試登入捷徑**（`src/app/admin/login/dev-login-action.ts`）——業主反應真實 Magic Link 流程（等信、點連結）拖慢自己測試的速度，要求先簡化、上線前再加回安全強度。**這支刻意設計成不需要記得之後拿掉**：`devLogin()` 第一行就擋 `process.env.NODE_ENV === "production"`，Vercel production 部署這個值一定是 `"production"`（Next.js 內建行為，不是本專案自訂環境變數，不會因為業主忘記關閉設定而變成正式站後門）。效果等同 HANDOFF 過去記錄的手動測試方式（直接插入 session 列 + 設 cookie），差別是自動化成登入頁一顆按鈕（只在非 production 顯示）。實測：點擊後直接建立 session、導向 `/admin/collections`，跟正常 Magic Link 登入產生的 session 完全相容。
+
+**測試方法**：每一項都在本機 `pnpm dev` 截圖/DOM 檢查驗證過（部分項目用臨時腳本寫入測試資料到真實 Turso 資料庫、驗證後清空，比照這份文件一直以來的慣例）；`tsc --noEmit`、`eslint src` 全專案在每一項改動後都跑過確認通過。**全部 10 項都還沒 `git push`**——累積異動約 22 個檔案（含 4 個新檔），等業主全部看過決定後才推上去。
+
 ### 1.2 進行中／下一步
 
 見本文件第 6 節「下一步具體指令」。
@@ -542,9 +593,9 @@ Phase 4 主要頁面（首頁、系列內頁）到這裡都完成了。SPEC.md �
 
 | slug | collection id | 中文標題 | visibility | publishedAt |
 |---|---|---|---|---|
-| `pure-land` | `esxi1k69w1tj0hhrutkbcasy` | 在最後的淨土上孤獨 | `draft` | `null`（從沒發布過，有 10 筆 blocks） |
-| `cumedy-night` | `od9x85brwb41br60iatmph26` | 未完待酗 | `draft` | 2026-09-14（本次草稿/發布機制驗證時實際發布過一次，見 §1.1 第六批） |
-| `x-venom` | `q98m73u1bk6dque18y4eh30f` | X-venom | `draft` | `null`（從沒發布過） |
+| `pure-land` | `esxi1k69w1tj0hhrutkbcasy` | 在最後的淨土上孤獨 | `public`（2026-09-15 切） | 2026-09-15（第十二批切公開時一併發布現有 10 筆 blocks） |
+| `cumedy-night` | `od9x85brwb41br60iatmph26` | 未完待酗 | `public`（2026-09-15 切） | 2026-09-14（第六批草稿/發布機制驗證時發布，內容未變動） |
+| `x-venom` | `q98m73u1bk6dque18y4eh30f` | X-venom | `public`（2026-09-15 切） | 2026-09-15（第十二批切公開時一併發布現有 7 筆 blocks） |
 
 （cumedy-night 8 筆 blocks；pure-land 10 筆；x-venom 7 筆，25 筆總數三系列相加正確。`publishedSnapshot`/`publishedAt` 兩欄是 2026-09-14 才新增的，見 §1.1 第六批與 migration `0003_colorful_millenium_guard.sql`。）
 
@@ -552,7 +603,7 @@ Phase 4 主要頁面（首頁、系列內頁）到這裡都完成了。SPEC.md �
 
 - 三個系列的 `year`、`category`、`pieceCount` 欄位**全部是 `null`**——目前的 seed 完全沒有這三個欄位的資料，待業主提供
 - 三個系列的 `ogImageId`、`titleImageId` 也都是 `null`
-- 三個系列的 `visibility` 都還是 `draft`，尚未有任何系列進入 `published`（正式上線前必須決定並手動切換）
+- 三個系列的 `visibility` **已於 2026-09-15（第十二批）全部切成 `public`**，見 §3.1
 - `awards.titleEn` 允許 `null`（migration `0002_youthful_karma.sql` 已放寬），部分獎項的英文標題確實是 `null`，是刻意保留、不是缺漏（見 SPEC.md §10.1 對「金點新秀設計獎」等中文全名的精確度要求，以及「未提供英譯就不要編一個」的原則）
 - SPEC.md §10.4 列出的其餘待業主確認事項，見本文件第 5 節
 
@@ -586,33 +637,45 @@ Phase 4 主要頁面（首頁、系列內頁）到這裡都完成了。SPEC.md �
 
 ---
 
-## 5. 待業主確認清單（複製自 SPEC.md §10.4，原文未變動）
+## 5. 待業主確認清單（原複製自 SPEC.md §10.4；2026-09-15 第十二批已收斂大部分項目，狀態見下）
 
-- [ ] **Cumedy 拼字** — 確認保留原拼字（規格書已按保留處理）
-- [ ] **色彩策略** — 介面黑灰白、作品區跟隨作品（偏離原始「全站黑灰白」需求）
-- [ ] **Cumedy Night 的內容提示** — 是否啟用進入前確認
-- [ ] **是否在關於頁展示獲獎證書** — 若要展示，證書圖片必然要放在公開可讀的路徑，§12.4「證書不進公開圖片路徑」的考量在這個情況下就不適用；若只是後台存檔用途，則不需要把證書匯入前台會用到的圖片系統。兩種用途對應的技術處理不同，需要業主先決定要不要公開展示。
-- [ ] **Cumedy Night 成品照數量偏多** — 實際匯入 33 張成品照，遠超過原規劃的 17 張。建議由設計師從中精選 8–12 張左右編入頁面 blocks（呼應這系列「緊繃擁擠」但仍需可讀的節奏），其餘照片保留在圖庫中，不必全部塞進頁面——目前的 seed blocks 只先用了其中少數幾張佔位，正式編排前需要設計師在後台重新挑選。
-
-另外本次交接新發現、建議一併請業主確認：
-
-- [ ] **三個系列的 `year`／`category`／`pieceCount` 目前完全是空的**，需要業主補資料才能在前台顯示年份/分類/件數等資訊
-- [ ] **三個系列目前 `visibility` 都是 `draft`**，正式上線前需要業主確認每個系列何時要切換成 `published`
+- [ ] **Cumedy 拼字** — 確認保留原拼字（規格書已按保留處理，尚未有業主明確覆核，但不影響任何工作，維持現狀）
+- [ ] **色彩策略** — 介面黑灰白、作品區跟隨作品（偏離原始「全站黑灰白」需求）——已實作為現行版本，尚未有業主明確覆核
+- [ ] **Cumedy Night 的內容提示是否啟用** — 目前 `requiresConsent: true`，尚未被明確覆核（注意：這跟下面「持久化範圍」是兩個不同問題，持久化範圍已確認）
+- [x] ~~內容提示層持久化範圍~~ — **已確認**（2026-09-15）：維持現狀，每次新分頁/重新造訪都要再進入一次
+- [x] ~~是否在關於頁展示獲獎證書~~ — **已確認並上線**（2026-09-15）：公開展示，證書圖已上傳並關聯
+- [x] ~~淺色主題次要語言對比度~~ — **已修復**（2026-09-15）：`light` 主題另外用 `0.65`，其餘維持 `0.55`；因三系列目前都不是 `light` 主題，沒有肉眼實測過
+- [x] ~~部分區塊的暫定字級~~ — **維持工程端現值**（2026-09-15），業主指示可以推進、沒有提供新數字
+- [ ] **Cumedy Night 成品照數量偏多**（33 張 → 建議精選 8–12 張）— 業主已表示要自己去後台 Block Editor 挑選編排（2026-09-15），非工程待辦，僅供追蹤是否已完成
+- [ ] **三個系列的 `year`／`category`／`pieceCount` 目前完全是空的**，需要業主補資料才能在前台顯示年份/分類/件數等資訊——2026-09-19 這批新增的「統計數字區塊」（見 Phase 6 第 5 項）也要靠這三個欄位才會顯示東西，目前這個新區塊在前台等於還看不到
+- [x] ~~三個系列目前 `visibility` 都是 `draft`~~ — **已於 2026-09-15 全部切成 `public`**，見 §3.1
+- [x] ~~Hero 文字疊層的字體要不要換~~ — **已決定並實作**（2026-09-20，本機驗證、尚未 push）：
+  - 混合模式：業主看過 `overlay`（白/深色區域幾乎消失）後，用暫時的網址參數比較四種處理，選定 **`mix-blend-mode: difference`**（暫時參數已刪除）。
+  - 字體：業主要求「更藝術」，先試了 Syne + LXGW WenKai TC 楷體，業主看過說中文不好看；再給了 4 個中文候選（Noto Sans TC Bold／Black、LXGW Marker Gothic、Chocolate Classical Sans），業主沒有從中選，而是拿三張參考圖（手繪姓名字樣風格）問能不能做到——這些都是設計師手工繪製的字樣／商業字體，不在 Google Fonts，也不能從別人作品描字形。**最後選定方向 A：由業主（或字體設計師）自己畫姓名專屬字樣，工程端只做接線。** 目前文字退回顯示：英文 Syne Bold、中文 Noto Sans TC Bold、職稱同兩款（`src/app/hero-fonts.ts`，只套 Hero，不動全站字體）。原本討論的 Archivo／Space Grotesk／Familjen Grotesk／Bricolage Grotesque 沒有採用。
+  - **專屬字樣已由工程端程式化生成並裝上（2026-09-20，業主非設計背景、只給參考圖、要求工程端代為產出）**：`public/brand/name-zh.svg`／`name-en.svg`，設定在 `src/app/hero-logotype.ts`。做法：拿現有字體輪廓（中文 Noto Serif TC Black「曾昱睿」、英文 Abril Fatface「Tseng Yu Jui」，兩者皆 SIL OFL 開源授權，衍生輪廓可用）取樣成折線，套上程式化變形。**第一版（瘦長：垂直拉長 1.6／1.75 倍、腰身收窄 0.28／0.24）業主看過說「往內縮的感覺，想要更大方大氣」，已換掉**；現行版本相反——不拉長（中文 1.2／英文 1.12）、腰身反而微鼓（-0.09／-0.07）、上下端撐開 0.16／0.12、整體水平放大 1.1／1.06、字距與詞距加大避免碰撞。尺寸也加大：英文寬約 7.6em、中文在 EN 模式下高約 1.1em，並改成「以寬度為準、超出欄位自動縮小」（`width: min(100%, …em)`，h1 與每行 span 需 `w-full`），桌機 1440／1024／手機 390 都量過不超出欄位、無橫向捲動。**沒有複製參考圖的任何字形**，只借用「高對比明體＋拉長收腰」的風格方向。⚠️ 這是「變形過的現成字體」，不是手繪字樣，品質不如真正的設計師作品；業主若想升級，把設計師畫的去背 SVG 直接覆蓋 `public/brand/` 兩個檔案、改 `aspect` 即可，接線不用動。⚠️ 底稿是襯線體，偏離 SPEC §5.2「禁止襯線」——這是圖片形式的專屬字樣，且業主參考圖本身就是明體風格。生成腳本在對話暫存目錄，沒有進 repo；備用的第二組更激進變形（中文拉長 1.85／腰 0.34、英文拉長 2.0／腰 0.3）也沒有裝。用真實照片模擬 `difference` 混合看過：Cumedy 雜亂背景下讀得到（壓在白色領巾上的 `Yu` 對比較弱）、淨土淺色照片下反相成暖褐色。**還沒看過在真實瀏覽器畫面上的實際效果**。
+  - （以下為當初留給設計師的接線規格說明，仍適用於日後替換）**專屬字樣接線**（`src/app/hero-logotype.ts` 的 `HERO_NAME_LOGOTYPE`）：把去背的單色 SVG（或寬度 ≥ 2400px 的 PNG）放進 `public/brand/`，在該檔案填 `src`／`aspect`（寬÷高）／`heightEm`，中英各自獨立，設了就顯示字樣、沒設就退回文字。程式會用 CSS filter 統一轉白（`difference` 混合需要白色），真實姓名文字保留在 DOM 裡（`sr-only`，供 SEO／螢幕閱讀器），語言切換時字樣會跟著縮放。用臨時黑色測試 SVG 驗證過（載入、轉白、縮放比例、姓名文字仍在 DOM、無 console 錯誤），測試檔已刪除。**⚠️ 只驗證了程式行為，沒有實際看過真的字樣在畫面上的視覺效果**（等圖檔）。字樣圖必須去背，帶底色的圖會變成一塊白色矩形。系列頁標題也可以用同樣方式做（資料庫已有 `collections.titleImageId`），還沒接。
+  - 同批修掉兩個 bug：(1) 姓名的 g 下伸部被滑入動畫的 `overflow-hidden` 遮罩切掉（補 padding + 負 margin）；(2) Hero 左欄包裝層寬度塌成 0，右欄蓋到左半邊、真正右半邊全黑（現在左右兩欄各包一層 `lg:w-1/2`）。第 (2) 個 bug 在前一輪「配對同系列」驗證時沒被抓到，因為當時只檢查了 z-index 與 r2Key 前綴，沒有量兩欄實際位置與寬度。
+- [ ] **Cumedy Night 內容提示是否啟用 vs. 首頁封面 hover 曾經試過的 ASCII 效果**——這兩個問題都懸著（第一個原本就沒解決，第二個是業主看過 demo 後主動要求整個撤掉，已完整移除，見 Phase 6 第 8 項），下一個 session 不用主動重提 ASCII，除非業主自己想改變主意
 
 ---
 
 ## 6. 下一步具體指令
 
-**Phase 3、Phase 4、Phase 5（SPEC.md §13 項目 16–29）全部完成，專案已經上線**（https://tsengyujui-portfolio.vercel.app ，見 §1）。首頁版面最終定案：SPEC §4.2 原文結構，系列列表**不帶** statement 摘要段落（業主決定維持封面圖＋標題＋年份＋類型，完整文字段落只在 `/work/[slug]` 內頁）。
+**Phase 3、Phase 4、Phase 5（SPEC.md §13 項目 16–29）全部完成，三個系列已於 2026-09-15（第十二批）切成 `public` 並發布**（https://tsengyujui-portfolio.vercel.app ，見 §1、§3.1）。首頁版面最終定案：SPEC §4.2 原文結構，系列列表**不帶** statement 摘要段落（業主決定維持封面圖＋標題＋年份＋類型，完整文字段落只在 `/work/[slug]` 內頁）。
+
+**Phase 6（UI/UX 精修批次，見 §1.1）10 項改動全部完成，一樣還沒 `git push`**——累積異動約 22 個檔案（含 4 個新檔：`site-nav.tsx`、`lang-switch-button.tsx`、`theme-switch-button.tsx`、`get-adjacent-collections.ts`、`dev-login-action.ts`）。下一個 session 開場時：
+
+1. 先確認業主是否已經看過本機效果、同意 `git push`——`git status` 目前異動的檔案清單見 §1.1 Phase 6 開頭。DB 端的變更（visibility、發布快照、證書、精選照 `featuredOrder`）已經直接寫進 Turso 生效，不需要 push 才生效；push 是把「程式碼」（含這批 UI/UX 改動、SPEC/HANDOFF 文件更新）同步上 GitHub，觸發 Vercel 重新部署，正式站的首頁/系列頁才會變成新版面
+2. 業主還沒選定 Hero 文字疊層要不要換字體（見 §5 清單），如果業主這次有想法，直接照決定改 `src/components/blocks/render/fonts.ts` 或 Hero 專用的字體載入（目前 Hero 沿用 `langFontClass` 既有的 Inter Tight，還沒有獨立的字體選擇）
+3. 業主提過要簡化後台方便測試，`devLogin()` 已經做好（只在非 production 顯示，見 §1.1 第 10 項）——如果業主之後真的要上線，**不需要額外做任何事把它關掉**，Vercel production 部署本來就會讓這個入口自動失效，不用列進上線檢查清單
 
 給下一個 session 的建議開場指令：
 
-> Phase 1–5 都已經完成並實測，專案已上線（見 HANDOFF.md §1）。剩下的都是「業主決策」或「需要業主提供憑證」，不是工程待辦：
-> 1. **`EMAIL_SERVER`/`EMAIL_FROM`**——業主提供真實 SMTP 憑證後補進 Vercel Production 環境變數，Magic Link 登入才能在正式站用（見 §1.1 第十批）。
-> 2. **Preview 環境變數**——Vercel CLI 54.14.0 對「套用到所有 Preview 分支」這個操作一直失敗，需要業主自己到 Vercel dashboard 手動補（見 §1.1 第十批）。
-> 3. **SPEC.md §10.4 待業主確認清單**（詳見該節，這裡只列摘要）：statement 區塊字級、金點新秀證書是否公開、內容提示層持久化範圍、淺色主題下次要語言文字的對比度數值。
->
-> 業主準備好要讓網站真的公開（不是只在 Vercel 網址上，是心理上準備好被看到）時，記得先走一次 SPEC.md §12.12 上線前檢查清單，並把三個系列的 `visibility` 從 `draft` 切成 `public`（見 §3.2）。
+> 三個系列已經公開上線（2026-09-15），SPEC.md §10.4 的待業主確認清單大部分已收斂（見 HANDOFF.md §5 逐項狀態）。還剩：
+> 1. **`EMAIL_SERVER`/`EMAIL_FROM`**——業主提供真實 SMTP 憑證後補進 Vercel Production 環境變數，Magic Link 登入才能在正式站用（見 §1.1 第十批；設定方式已在對話中教過業主，未寫入本文件）。
+> 2. **Preview 環境變數**——Vercel CLI 54.14.0 這個 bug 這次（第十二批）重新嘗試過仍然存在，已備妥所有變數值（含一組新產生的 Preview 專用 `AUTH_SECRET`），需要業主自己到 Vercel dashboard 手動貼上。
+> 3. **Cumedy Night 成品照精選**——業主要自己去後台 Block Editor 從 33 張裡選 8–12 張重新編排，選完記得按「發布」，`publishedSnapshot` 才會更新到前台。
+> 4. 尚未提交 git（見上方本節開頭）——業主同意後記得 push。
 
 **沒有實測、需要業主/後續 session 補驗的一點**：Hero 背景輪播在 `prefers-reduced-motion` 開啟時是否真的停用自動播放（見 §1.1 第六批最後一點）——這個測試環境沒有 DevTools Rendering 面板的存取權限，只確認過程式碼邏輯（`matchMedia` 呼叫本身正常執行）沒有 bug，沒有肉眼切換系統偏好驗證過視覺效果。
 

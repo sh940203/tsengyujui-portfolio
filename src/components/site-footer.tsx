@@ -21,17 +21,17 @@ export function SiteFooter({
   const year = new Date().getFullYear();
   return (
     <footer
-      className="flex flex-col items-center gap-3 bg-[#0A0A0A] px-6 py-12 text-[#808080]"
+      className="flex flex-col items-center gap-3 bg-[var(--ui-bg)] px-6 py-12 text-[var(--ui-muted)]"
       style={{ fontSize: "0.65rem", letterSpacing: "0.18em" }}
     >
       <div className={`flex flex-wrap items-center justify-center gap-4 ${langFontClass("en", "ui")}`}>
         {email && (
-          <a href={`mailto:${email}`} className="hover:text-[#F2F3F4]">
+          <a href={`mailto:${email}`} className="hover:text-[var(--ui-fg)]">
             {email}
           </a>
         )}
         {instagram && (
-          <a href={`https://instagram.com/${instagram}`} target="_blank" rel="noreferrer" className="hover:text-[#F2F3F4]">
+          <a href={`https://instagram.com/${instagram}`} target="_blank" rel="noreferrer" className="hover:text-[var(--ui-fg)]">
             @{instagram}
           </a>
         )}

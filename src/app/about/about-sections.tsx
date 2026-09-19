@@ -25,7 +25,7 @@ export function AboutHeader({
   imageR2Key: string | null;
 }) {
   return (
-    <section className="flex flex-col items-center gap-8 bg-[#0A0A0A] px-6 pt-[clamp(6rem,14vw,10rem)] pb-[clamp(3rem,6vw,5rem)] text-center text-[#F2F3F4]">
+    <section className="flex flex-col items-center gap-8 bg-[var(--ui-bg)] px-6 pt-[clamp(6rem,14vw,10rem)] pb-[clamp(3rem,6vw,5rem)] text-center text-[var(--ui-fg)]">
       {imageR2Key && (
         <div className="relative aspect-[3/4] w-full max-w-xs overflow-hidden bg-white/5">
           <Image src={imageR2Key} alt={nameEn} fill sizes="320px" style={{ objectFit: "cover" }} />
@@ -51,7 +51,7 @@ export function AboutHeader({
 export function AboutBio({ bioEn, bioZh }: { bioEn: string | null; bioZh: string | null }) {
   if (!bioEn && !bioZh) return null;
   return (
-    <section className="bg-[#0A0A0A] px-6 py-[clamp(3rem,6vw,5rem)] text-[#F2F3F4]">
+    <section className="bg-[var(--ui-bg)] px-6 py-[clamp(3rem,6vw,5rem)] text-[var(--ui-fg)]">
       <div className="mx-auto max-w-2xl" style={{ fontSize: "clamp(1rem, 2vw, 1.25rem)", lineHeight: 1.7 }}>
         <Lang en={bioEn ?? ""} zh={bioZh ?? ""} role="ui" />
       </div>
@@ -93,7 +93,7 @@ function AwardResult({ resultEn, resultZh }: { resultEn: string | null; resultZh
 export function AwardsList({ items }: { items: AwardListItem[] }) {
   if (items.length === 0) return null;
   return (
-    <section className="bg-[#0A0A0A] px-6 py-[clamp(3rem,6vw,5rem)] text-[#F2F3F4]">
+    <section className="bg-[var(--ui-bg)] px-6 py-[clamp(3rem,6vw,5rem)] text-[var(--ui-fg)]">
       <ul className="mx-auto flex max-w-2xl flex-col gap-6">
         {items.map((item) => (
           <li key={item.id} className="flex flex-col gap-2 border-b border-white/10 pb-6 last:border-none">
@@ -141,7 +141,7 @@ export function ContactSection({
 }) {
   if (!email && !instagram && !behance) return null;
   return (
-    <section className="bg-[#0A0A0A] px-6 py-[clamp(3rem,6vw,5rem)] text-center text-[#F2F3F4]">
+    <section className="bg-[var(--ui-bg)] px-6 py-[clamp(3rem,6vw,5rem)] text-center text-[var(--ui-fg)]">
       <div
         className={`mx-auto flex max-w-2xl flex-wrap items-center justify-center gap-6 ${langFontClass("en", "ui")}`}
         style={{ fontSize: "0.85rem", letterSpacing: "0.05em" }}

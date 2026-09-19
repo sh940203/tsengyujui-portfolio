@@ -3,7 +3,8 @@
 import Image from "next/image";
 import { useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from "react";
 import { Lang, langFontClass, langFontVariables } from "@/components/lang";
-import type { RenderBlock, RenderMediaOption, RenderTheme } from "./types";
+import Link from "next/link";
+import type { AdjacentCollectionLink, RenderBlock, RenderMediaOption, RenderTheme } from "./types";
 
 /**
  * 12 種區塊的共用渲染元件（SPEC.md §13 項目 19 即時預覽 + 項目 23 前台
@@ -96,6 +97,7 @@ function MediaBox({
   className,
   style,
   sizes,
+  fit = "contain",
 }: {
   mediaOptions: RenderMediaOption[];
   id: string | null | undefined;
@@ -103,6 +105,21 @@ function MediaBox({
   className?: string;
   style?: CSSProperties;
   sizes?: string;
+  /**
+   * UI/UX 稽核（2026-09-16）：原本全部寫死 `cover`，作品照片（尤其直幅
+   * 全身服裝照）被固定長寬比的框裁切，看不到完整的服裝設計——業主要求
+   * 改成預設完整顯示（`contain`），不裁切。
+   *
+   * 保留 `cover` 給少數「裁切本身就是效果的一部分」的區塊當例外，不是
+   * 全部一視同仁地改，這幾個改成 contain 反而會壞掉：
+   * - `full-bleed`：語意就是「滿版出血」，一旦 contain 就不再貼齊邊緣，
+   *   等於不是這個區塊了
+   * - `mirror`：兩張同一張圖的鏡射需要精確填滿正方形才能在中線接合，
+   *   contain 會讓兩半各自内縮出留白，鏡面看起來斷開、不連續
+   * - `lens`：清晰圓圈跟暗化背景疊在同一個 aspect-video 框裡，兩層都要
+   *   填滿才會對齊；一旦 contain，圓圈裡外會露出不一致的留白
+   */
+  fit?: "cover" | "contain";
 }) {
   const found = findMedia(mediaOptions, id);
   return (
@@ -110,14 +127,20 @@ function MediaBox({
     // 不內建 relative——如果呼叫端要疊加 absolute（例如 full-bleed 貼滿父層）
     // 又被這裡寫死的 relative 蓋掉，會讓容器高度塌陷成 0，圖片完全不可見
     // （實測跑出來的問題，不是預先猜的）。
-    <div className={`overflow-hidden bg-white/10 ${className ?? ""}`} style={style}>
+    //
+    // 背景色只在「沒選圖片」時才給 bg-white/10（原本的佔位提示色）——
+    // `contain` 模式下，圖片比例跟容器比例不一致時會露出容器背景當作
+    // letterbox，這裡如果維持 bg-white/10，會在圖片周圍留下一圈不透明的
+    // 白色色塊，蓋掉系列的 `--bg` 主題色。改成透明，讓容器背後的頁面
+    // 背景（`--bg`）透出來，letterbox 才會跟版面融合而不是一塊突兀的色塊。
+    <div className={`overflow-hidden ${found ? "" : "bg-white/10"} ${className ?? ""}`} style={style}>
       {found ? (
         <Image
           src={found.r2Key}
           alt={altTextFor(found, lang)}
           fill
           sizes={sizes ?? "50vw"}
-          style={{ objectFit: "cover" }}
+          style={{ objectFit: fit }}
         />
       ) : (
         <div
@@ -225,9 +248,9 @@ function LensBlock({
       onMouseMove={followCursor ? handleMouseMove : undefined}
       onMouseLeave={followCursor ? () => setPos(null) : undefined}
     >
-      <MediaBox mediaOptions={mediaOptions} lang={lang} id={mediaId} className="absolute inset-0 h-full w-full opacity-30" />
+      <MediaBox mediaOptions={mediaOptions} lang={lang} id={mediaId} className="absolute inset-0 h-full w-full opacity-30" fit="cover" />
       <div className="pointer-events-none absolute inset-0" style={{ clipPath }}>
-        <MediaBox mediaOptions={mediaOptions} lang={lang} id={mediaId} className="relative h-full w-full" />
+        <MediaBox mediaOptions={mediaOptions} lang={lang} id={mediaId} className="relative h-full w-full" fit="cover" />
       </div>
     </div>
   );
@@ -261,7 +284,7 @@ export function BlockRenderer({
               : "hidden";
       return (
         <div className={`relative w-full ${heightClass}`}>
-          <MediaBox mediaOptions={mediaOptions} lang={lang} id={c.mediaId as string | null} className="absolute inset-0 h-full w-full" sizes="100vw" />
+          <MediaBox mediaOptions={mediaOptions} lang={lang} id={c.mediaId as string | null} className="absolute inset-0 h-full w-full" sizes="100vw" fit="cover" />
           {overlayPosition !== "none" && (
             <div className={`relative z-10 flex h-full w-full p-8 font-medium ${overlayClass}`}>
               <span
@@ -470,13 +493,14 @@ export function BlockRenderer({
       const isVertical = axis === "vertical";
       return (
         <div className={`flex w-full ${isVertical ? "flex-row" : "flex-col"} ${GAP_CLASS[gap]}`}>
-          <MediaBox mediaOptions={mediaOptions} lang={lang} id={c.mediaId as string | null} className="relative aspect-square flex-1" />
+          <MediaBox mediaOptions={mediaOptions} lang={lang} id={c.mediaId as string | null} className="relative aspect-square flex-1" fit="cover" />
           <MediaBox
             mediaOptions={mediaOptions}
             lang={lang}
             id={c.mediaId as string | null}
             className="relative aspect-square flex-1"
             style={{ transform: isVertical ? "scaleX(-1)" : "scaleY(-1)" }}
+            fit="cover"
           />
         </div>
       );
@@ -498,6 +522,136 @@ function EmptyMediaLabel({ lang }: { lang: "en" | "zh" }) {
   );
 }
 
+/**
+ * SPEC.md §4.3「系列間導航：頁尾提供上一個系列/下一個系列」——一直沒做
+ * （UI/UX 稽核 2026-09-16 抓到），放在 `CollectionBlocksRender` 的
+ * `<main>` 裡面（不是外面另起一個 `<footer>`）：純粹是因為要吃同一個
+ * `<main>` 上已經定義好的 `--bg`/`--fg` 主題色 CSS 變數，這兩個變數是
+ * inline style 掛在 `<main>` 上，只有子孫元素能繼承，放外面拿不到。
+ * admin 即時預覽（`preview-client.tsx`）沒有系列清單順序的概念，
+ * `prev`/`next` 不傳就整段不渲染，不影響預覽現有行為。
+ */
+function AdjacentCollectionsNav({
+  prev,
+  next,
+  lang,
+}: {
+  prev: AdjacentCollectionLink | null;
+  next: AdjacentCollectionLink | null;
+  lang: "en" | "zh";
+}) {
+  if (!prev && !next) return null;
+  return (
+    <nav
+      aria-label="Collection navigation"
+      className={`mt-auto flex w-full justify-between border-t border-current/20 pt-6 ${META_TEXT_CLASS} ${langFontClass(lang, "ui")}`}
+    >
+      <div>
+        {prev && (
+          <Link href={`/work/${prev.slug}`} className="opacity-70 transition-opacity hover:opacity-100">
+            <Lang en={`Prev — ${prev.titleEn}`} zh={prev.titleZh ? `上一個系列 — ${prev.titleZh}` : "上一個系列"} role="ui" />
+          </Link>
+        )}
+      </div>
+      <div>
+        {next && (
+          <Link href={`/work/${next.slug}`} className="opacity-70 transition-opacity hover:opacity-100">
+            <Lang en={`Next — ${next.titleEn}`} zh={next.titleZh ? `下一個系列 — ${next.titleZh}` : "下一個系列"} role="ui" />
+          </Link>
+        )}
+      </div>
+    </nav>
+  );
+}
+
+/**
+ * 系列頁「捲動釘住標題」（2026-09-18，業主指定參考 aoiofficial.com Salon
+ * 頁面的手法）——系列標題用超大字級、低透明度固定在畫面正中央，`blocks`
+ * 內容在上面正常捲動。標題本身不移動（`position: fixed`，不是隨捲動位置
+ * 計算的 JS parallax）：這個效果的重點是「文字在圖片之間的留白處持續
+ * 若隱若現」，不是文字本身要跟著捲動速度變化，`fixed` 已經達到這個視覺
+ * 效果，不需要另外寫 scroll listener。
+ *
+ * `z-index: -1` 讓它穩定沉在最底層——一般文件流的元素（沒有設
+ * `position`/`z-index` 的區塊圖片）預設層級一定比負值高，會自然疊在
+ * 上面蓋住標題文字，只有空白／留白區域才會透出標題，不需要每個區塊自己
+ * 加不透明背景去擋。`pointer-events-none` 避免這層文字擋到底下內容的
+ * 連結/hover（例如 pair 區塊圖片間的空隙）。
+ */
+function PinnedTitle({
+  titleEn,
+  titleZh,
+  lang,
+}: {
+  titleEn: string;
+  titleZh: string | null;
+  lang: "en" | "zh";
+}) {
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none fixed inset-0 z-[-1] flex items-center justify-center overflow-hidden px-6 text-center"
+    >
+      <div
+        className={`opacity-[0.08] ${langFontClass(lang, "display")}`}
+        style={{ fontSize: "clamp(3rem, 14vw, 14rem)", letterSpacing: "-0.02em", lineHeight: 1 }}
+      >
+        <Lang en={titleEn} zh={titleZh ?? ""} role="display" />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 統計數字區塊（2026-09-18，業主指定參考 aoiofficial.com 商品頁的「大數字
+ * + 小標籤」呈現方式）——顯示系列的 `year`／`pieceCount`／`category`，
+ * 三個都是 `collections` 表既有欄位（SPEC.md §2.2），不是新的資料模型。
+ *
+ * 固定渲染在頁面最上方（h1 之後、第一個設計區塊之前），不是 Block
+ * Editor 可拖曳排序的第 13 種區塊——這三個欄位是系列的「規格資訊」，
+ * 語意上比較接近一個固定的資訊列，不是設計師會想在頁面中間穿插的內容
+ * 區塊；參考的 aoiofficial.com 商品頁也是固定版位，不是可任意搬移的
+ * CMS 區塊。三個欄位目前全部系列都還是 `null`（SPEC.md §10.3 待業主
+ * 提供），任何一個有值才顯示對應的統計項，三個都沒有就整段不渲染，
+ * 不會出現空白的區塊或裁切線。
+ *
+ * 只接到公開前台（`/work/[slug]`），admin 即時預覽 iframe 目前沒有把
+ * 這三個欄位查出來傳進來（`preview/page.tsx` 只查 `theme`）——這批範圍
+ * 只涵蓋公開頁面本身「有沒有正確顯示」，預覽同步是次要的，之後如果
+ * 設計師常態需要在編輯時看到這個區塊，再回來補。
+ */
+function CollectionStats({
+  year,
+  category,
+  pieceCount,
+  lang,
+}: {
+  year?: string | null;
+  category?: string | null;
+  pieceCount?: number | null;
+  lang: "en" | "zh";
+}) {
+  if (!year && !category && !pieceCount) return null;
+
+  const items: { value: string; labelEn: string; labelZh: string }[] = [];
+  if (year) items.push({ value: year, labelEn: "Year", labelZh: "年份" });
+  if (pieceCount) items.push({ value: String(pieceCount), labelEn: "Pieces", labelZh: "件數" });
+  if (category) items.push({ value: category, labelEn: "Category", labelZh: "類型" });
+
+  return (
+    <div className={`flex flex-wrap gap-x-12 gap-y-6 border-b border-current/20 pb-8 ${langFontClass(lang, "ui")}`}>
+      {items.map((item) => (
+        <div key={item.labelEn} className="flex flex-col gap-1">
+          <span style={{ fontSize: "clamp(1.5rem, 3vw, 2.25rem)", letterSpacing: "-0.005em" }}>
+            {item.value}
+          </span>
+          <Lang en={item.labelEn} zh={item.labelZh} role="ui" className={`opacity-60 ${META_TEXT_CLASS}`} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function CollectionBlocksRender({
   theme,
   blocks,
@@ -505,11 +659,21 @@ export function CollectionBlocksRender({
   lang,
   titleEn,
   titleZh,
+  year,
+  category,
+  pieceCount,
+  prev,
+  next,
 }: {
   theme: RenderTheme;
   blocks: RenderBlock[];
   mediaOptions: RenderMediaOption[];
   lang: "en" | "zh";
+  year?: string | null;
+  category?: string | null;
+  pieceCount?: number | null;
+  prev?: AdjacentCollectionLink | null;
+  next?: AdjacentCollectionLink | null;
   /**
    * 系列標題,只用來渲染一個視覺隱藏的 `<h1>`（無障礙排查批次抓到：
    * 區塊系統本身沒有固定的「標題」欄位——設計師可以自由編排任何區塊
@@ -531,6 +695,7 @@ export function CollectionBlocksRender({
     // <div> 為 <main> 就能滿足，不用另外包一層。
     <main
       data-lang={lang}
+      data-theme={theme}
       className={`${langFontVariables} flex min-h-screen flex-col ${BODY_TEXT_CLASS} ${langFontClass(lang, "ui")}`}
       style={{
         ...themeVars,
@@ -550,12 +715,15 @@ export function CollectionBlocksRender({
           {titleZh ? ` / ${titleZh}` : ""}
         </h1>
       )}
+      {titleEn && <PinnedTitle titleEn={titleEn} titleZh={titleZh ?? null} lang={lang} />}
+      <CollectionStats year={year} category={category} pieceCount={pieceCount} lang={lang} />
       {blocks.length === 0 && (
         <p className={`opacity-50 ${BODY_TEXT_CLASS}`}>這個系列還沒有任何區塊。</p>
       )}
       {blocks.map((block) => (
         <BlockRenderer key={block.id} block={block} mediaOptions={mediaOptions} lang={lang} />
       ))}
+      <AdjacentCollectionsNav prev={prev ?? null} next={next ?? null} lang={lang} />
     </main>
   );
 }

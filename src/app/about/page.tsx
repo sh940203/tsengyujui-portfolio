@@ -106,7 +106,7 @@ export default async function AboutPage() {
   });
 
   return (
-    <LangPageWrapper>
+    <LangPageWrapper navVariant="about">
       <script type="application/ld+json" {...jsonLdScriptProps(jsonLd)} />
       {/* 無障礙排查批次抓到（Lighthouse landmark-one-main）：全站沒有
           <main>，補在這裡——頁尾維持獨立的 <footer>，不包進來。 */}

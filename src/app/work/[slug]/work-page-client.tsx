@@ -3,7 +3,14 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CollectionBlocksRender } from "@/components/blocks/render/block-render";
-import type { RenderBlock, RenderMediaOption, RenderTheme } from "@/components/blocks/render/types";
+import type {
+  AdjacentCollectionLink,
+  RenderBlock,
+  RenderMediaOption,
+  RenderTheme,
+} from "@/components/blocks/render/types";
+import { LangSwitchButton } from "@/components/lang-switch-button";
+import { SiteNav } from "@/components/site-nav";
 
 function consentStorageKey(slug: string) {
   return `consent:${slug}`;
@@ -77,21 +84,31 @@ export function WorkPageClient({
   theme,
   titleEn,
   titleZh,
+  year,
+  category,
+  pieceCount,
   requiresConsent,
   consentNoteEn,
   consentNoteZh,
   blocks,
   mediaOptions,
+  prev,
+  next,
 }: {
   slug: string;
   theme: RenderTheme;
   titleEn: string;
   titleZh: string | null;
+  year: string | null;
+  category: string | null;
+  pieceCount: number | null;
   requiresConsent: boolean;
   consentNoteEn: string | null;
   consentNoteZh: string | null;
   blocks: RenderBlock[];
   mediaOptions: RenderMediaOption[];
+  prev: AdjacentCollectionLink | null;
+  next: AdjacentCollectionLink | null;
 }) {
   const [lang, setLang] = useState<"en" | "zh">("en");
   const [consented, setConsented] = useState<boolean | null>(requiresConsent ? null : true);
@@ -116,13 +133,8 @@ export function WorkPageClient({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setLang((l) => (l === "en" ? "zh" : "en"))}
-        className="fixed top-4 right-4 z-50 rounded border border-white/30 bg-black/50 px-2 py-1 text-[10px] text-white"
-      >
-        {lang.toUpperCase()}
-      </button>
+      <SiteNav variant="work" />
+      <LangSwitchButton lang={lang} onToggle={() => setLang((l) => (l === "en" ? "zh" : "en"))} />
       <CollectionBlocksRender
         theme={theme}
         blocks={blocks}
@@ -130,6 +142,11 @@ export function WorkPageClient({
         lang={lang}
         titleEn={titleEn}
         titleZh={titleZh}
+        year={year}
+        category={category}
+        pieceCount={pieceCount}
+        prev={prev}
+        next={next}
       />
     </>
   );

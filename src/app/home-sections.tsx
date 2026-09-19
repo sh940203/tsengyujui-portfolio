@@ -27,7 +27,7 @@ export interface SeriesListItem {
 export function SeriesList({ items }: { items: SeriesListItem[] }) {
   if (items.length === 0) return null;
   return (
-    <section className="bg-[#0A0A0A] px-6 py-[clamp(4rem,10vw,12rem)] text-[#F2F3F4]">
+    <section id="series" className="bg-[var(--ui-bg)] px-6 py-[clamp(4rem,10vw,12rem)] text-[var(--ui-fg)]">
       <div className="mx-auto flex max-w-6xl flex-col gap-[clamp(2rem,5vw,6rem)]">
         {items.map((item) => (
           <Link key={item.slug} href={`/work/${item.slug}`} className="group flex flex-col gap-4">
@@ -45,7 +45,12 @@ export function SeriesList({ items }: { items: SeriesListItem[] }) {
             </div>
             <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
               <h2 style={{ fontSize: "clamp(1.75rem, 4vw, 3rem)", letterSpacing: "-0.01em" }}>
-                <Lang en={item.titleEn} zh={item.titleZh ?? ""} role="display" />
+                <Lang
+                  en={item.titleEn}
+                  zh={item.titleZh ?? ""}
+                  role="display"
+                  className="series-title-lang"
+                />
               </h2>
               {(item.year || item.category) && (
                 <span
@@ -66,7 +71,7 @@ export function SeriesList({ items }: { items: SeriesListItem[] }) {
 export function BioSection({ bioEn, bioZh }: { bioEn: string | null; bioZh: string | null }) {
   if (!bioEn && !bioZh) return null;
   return (
-    <section className="bg-[#0A0A0A] px-6 py-[clamp(4rem,10vw,12rem)] text-[#F2F3F4]">
+    <section id="bio" className="bg-[var(--ui-bg)] px-6 py-[clamp(4rem,10vw,12rem)] text-[var(--ui-fg)]">
       <div className="mx-auto max-w-2xl text-center" style={{ fontSize: "clamp(1rem, 2vw, 1.25rem)" }}>
         <Lang en={bioEn ?? ""} zh={bioZh ?? ""} role="ui" />
       </div>

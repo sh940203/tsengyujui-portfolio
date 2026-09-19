@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db/client";
-import { getHomeCarouselImages } from "@/lib/media/featured";
+import { getHomeCarouselPairs } from "@/lib/media/featured";
 import { resolveOgImageUrl } from "@/lib/media/resolve-og-image";
 import { getProfile } from "@/lib/profile/get-profile";
 import { collections, media } from "@/lib/db/schema";
@@ -96,12 +96,20 @@ export default async function HomePage() {
       : [];
   const mediaMap = new Map(mediaRows.map((m) => [m.id, m.r2Key]));
 
-  const carouselImages = await getHomeCarouselImages();
-  const heroImages =
-    carouselImages.length > 0
-      ? carouselImages.map((img) => ({ id: img.id, r2Key: img.r2Key, altEn: img.altEn }))
+  const carouselPairs = await getHomeCarouselPairs();
+  // Fallback（沒有任何系列湊得出「同系列兩張」時）：退回單張靜態圖，左右
+  // 兩欄都放同一張——比起硬讓其中一欄空白，兩欄同圖至少畫面對稱、不突兀，
+  // 跟這批之前「單張靜態圖」的既有 fallback 精神一致，只是套用到雙欄版面。
+  const heroPairs =
+    carouselPairs.length > 0
+      ? carouselPairs
       : profileRow?.heroImageId && mediaMap.get(profileRow.heroImageId)
-        ? [{ id: profileRow.heroImageId, r2Key: mediaMap.get(profileRow.heroImageId)!, altEn: null }]
+        ? [
+            {
+              left: { id: profileRow.heroImageId, r2Key: mediaMap.get(profileRow.heroImageId)!, altEn: null },
+              right: { id: profileRow.heroImageId, r2Key: mediaMap.get(profileRow.heroImageId)!, altEn: null },
+            },
+          ]
         : [];
 
   const personImage = await resolveOgImageUrl(profileRow?.defaultOgImageId ?? profileRow?.heroImageId);
@@ -121,7 +129,7 @@ export default async function HomePage() {
   });
 
   return (
-    <LangPageWrapper>
+    <LangPageWrapper navVariant="home">
       <script type="application/ld+json" {...jsonLdScriptProps(jsonLd)} />
       {/* 無障礙排查批次抓到（Lighthouse landmark-one-main）：全站沒有
           <main>，補在這裡——頁尾維持獨立的 <footer>，不包進來。 */}
@@ -133,7 +141,7 @@ export default async function HomePage() {
           roleZh={profileRow?.roleZh ?? null}
           locationEn={profileRow?.locationEn ?? null}
           locationZh={profileRow?.locationZh ?? null}
-          images={heroImages}
+          pairs={heroPairs}
         />
         <SeriesList
           items={publicCollections.map((c) => ({

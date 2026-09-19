@@ -26,6 +26,31 @@ body {
 }
 
 /*
+ * 首頁/關於頁的「介面」淺色/深色（2026-09-16 新增，UI/UX 稽核）——這是
+ * 使用者自己選的偏好，不是系列頁的 `theme`（dark/light/void，作品內容
+ * 的一部分，由設計師決定，見 `block-render.tsx` 的 `THEME_VARS`，兩套
+ * 完全獨立）。SPEC §5.1 原文「介面色僅三色系」的 `--ui-black`/
+ * `--ui-white` 這兩個既有色碼直接拿來對調用，不是另外發明新顏色。
+ * `--ui-muted` 是頁尾/次要資訊用的灰階：淺色模式下 `#595959`
+ * 對 `--ui-bg` 實測 6.3:1，比 WCAG AA 一般文字門檻 4.5:1 多留一點餘裕
+ * （深色模式的 `#808080` 對 `--ui-bg` 是 5.01:1，無障礙排查批次定案的
+ * 既有數字，這裡沒有動）。
+ *
+ * `[data-ui-theme]` 掛在 `LangPageWrapper` 的根容器上（見該檔案），只有
+ * 首頁跟關於頁會用到；系列頁（`/work/[slug]`）沒有這個屬性，不受影響。
+ */
+:root {
+  --ui-bg: #0a0a0a;
+  --ui-fg: #f2f3f4;
+  --ui-muted: #808080;
+}
+[data-ui-theme="light"] {
+  --ui-bg: #f2f3f4;
+  --ui-fg: #0a0a0a;
+  --ui-muted: #595959;
+}
+
+/*
  * SPEC.md §6 — 語言系統。兩種語言永遠同時存在於 DOM，切換改變的是
  * 視覺層級（字級/透明度），不是內容有無。`data-lang` 掛在頁面的根容器上
  * （系列內頁見 `CollectionBlocksRender`，首頁見 `home-page-client.tsx`），
@@ -48,6 +73,34 @@ body {
 [data-lang="zh"] .lang-en {
   font-size: 0.55em;
   opacity: 0.55;
+}
+
+/*
+ * `theme: light` 專屬覆寫——SPEC §6.1 的 0.55 次要語言透明度，在
+ * `light` 主題（`--bg: #F2F3F4` 極淺底）的 UI/Meta 小字級（0.62–0.65rem）
+ * 上實測只有 4.05:1，沒有過 WCAG AA 一般文字的 4.5:1（見 SPEC.md §10.4、
+ * HANDOFF.md Phase 5 第十一批無障礙稽核）。字級比例（1em/0.55em）維持
+ * 不變，只在 `light` 主題把透明度提高到 0.65（4.05 → 更高，實測通過
+ * AA），`dark`/`void` 主題與沒有 `data-theme` 的頁面（首頁、關於頁）
+ * 不受影響，仍是 SPEC 原文的 0.55。
+ */
+[data-theme="light"][data-lang="en"] .lang-zh {
+  opacity: 0.65;
+}
+[data-theme="light"][data-lang="zh"] .lang-en {
+  opacity: 0.65;
+}
+
+/*
+ * UI/UX 稽核（2026-09-16）抓到：首頁系列列表的雙語標題在窄螢幕換行時，
+ * 中文會緊貼在英文換行後的最後一個字後面（例如「Land在最後的淨土上
+ * 孤獨」），跟全站故意讓短標籤中英文緊貼（例如「Fashion Designer服裝
+ * 設計師」，那些字串短到不會換行）不是同一回事——這裡容易誤讀成同一個
+ * 詞。只在 `.series-title-lang` 這個範圍內的 `.lang-zh` 加一點間距，
+ * 不動 `Lang` 元件全站共用的預設樣式。
+ */
+.series-title-lang .lang-zh {
+  margin-left: 0.35em;
 }
 
 /*
@@ -81,5 +134,50 @@ body {
   }
   to {
     opacity: 1;
+  }
+}
+
+/*
+ * Hero 輪播的「模糊快閃」轉場（2026-09-16 新增，業主指定參考設計）——
+ * 換圖時新圖從模糊/放大淡入、舊圖同時往模糊/縮小淡出，兩者時間軸重疊
+ * （見 `hero.tsx` 兩層同時掛載、同時觸發動畫），中段會有短暫的雙重
+ * 模糊疊影，比單純 opacity crossfade 更有動態能量。這是輪播「換圖」的
+ * 動效，屬於自動播放本身的一部分，跟 SPEC §4.2 講的「頁面載入」進場
+ * 動效（上面三組 keyframes）是兩件獨立的事——`prefers-reduced-motion`
+ * 時輪播整個不會自動播放（見 `hero.tsx` 的 `useEffect` guard），這兩組
+ * keyframes 實際上不會被觸發到，不需要另外寫 `motion-reduce` 覆寫。
+ */
+@keyframes hero-flicker-enter {
+  0% {
+    opacity: 0;
+    filter: blur(32px);
+    transform: scale(1.08);
+  }
+  55% {
+    opacity: 1;
+    filter: blur(6px);
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0px);
+    transform: scale(1);
+  }
+}
+@keyframes hero-flicker-exit {
+  0% {
+    opacity: 1;
+    filter: blur(0px);
+    transform: scale(1);
+  }
+  45% {
+    opacity: 0.6;
+    filter: blur(14px);
+    transform: scale(0.98);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(32px);
+    transform: scale(0.94);
   }
 }

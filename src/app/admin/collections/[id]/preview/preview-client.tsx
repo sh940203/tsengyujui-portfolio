@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CollectionBlocksRender } from "@/components/blocks/render/block-render";
+import { LangSwitchButton } from "@/components/lang-switch-button";
 import {
   PREVIEW_READY_SOURCE,
   PREVIEW_UPDATE_SOURCE,
@@ -60,13 +61,7 @@ export function PreviewClient({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setLang((l) => (l === "en" ? "zh" : "en"))}
-        className="fixed top-2 right-2 z-50 rounded border border-white/30 bg-black/50 px-2 py-1 text-[10px] text-white"
-      >
-        {lang.toUpperCase()}
-      </button>
+      <LangSwitchButton compact lang={lang} onToggle={() => setLang((l) => (l === "en" ? "zh" : "en"))} />
       <CollectionBlocksRender theme={theme} blocks={blocks} mediaOptions={mediaOptions} lang={lang} />
     </>
   );
