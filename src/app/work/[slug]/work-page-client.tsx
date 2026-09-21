@@ -2,15 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CollectionBlocksRender } from "@/components/blocks/render/block-render";
-import type {
-  AdjacentCollectionLink,
-  RenderBlock,
-  RenderMediaOption,
-  RenderTheme,
-} from "@/components/blocks/render/types";
+import type { AdjacentCollectionLink, RenderTheme } from "@/components/blocks/render/types";
 import { LangSwitchButton } from "@/components/lang-switch-button";
 import { SiteNav } from "@/components/site-nav";
+import type { GalleryStyle } from "@/lib/collections/gallery-style";
+import type { GalleryItem } from "@/lib/collections/get-series-gallery";
+import { SeriesGallery } from "./series-gallery";
 
 function consentStorageKey(slug: string) {
   return `consent:${slug}`;
@@ -75,38 +72,41 @@ function ConsentGate({
 }
 
 /**
- * SPEC.md §6 的雙語言同時存在 DOM 機制還沒做（見 SPEC §13 項目 22，
- * 獨立於這批範圍）——先比照 admin iframe 預覽的做法，用一個簡單的
- * EN/ZH 切換鈕頂著，`Lang` 元件真的換掉的時候這支也要跟著換。
+ * 系列內頁外殼：同意提示層、左上導航、EN/ZH 切換鈕，內容交給
+ * `SeriesGallery`（2026-09-20 改版：左欄固定敘述、右欄捲動系列全部作品）。
  */
 export function WorkPageClient({
   slug,
   theme,
+  galleryStyle,
   titleEn,
   titleZh,
+  statementEn,
+  statementZh,
   year,
   category,
   pieceCount,
   requiresConsent,
   consentNoteEn,
   consentNoteZh,
-  blocks,
-  mediaOptions,
+  items,
   prev,
   next,
 }: {
   slug: string;
   theme: RenderTheme;
+  galleryStyle: GalleryStyle;
   titleEn: string;
   titleZh: string | null;
+  statementEn: string | null;
+  statementZh: string | null;
   year: string | null;
   category: string | null;
   pieceCount: number | null;
   requiresConsent: boolean;
   consentNoteEn: string | null;
   consentNoteZh: string | null;
-  blocks: RenderBlock[];
-  mediaOptions: RenderMediaOption[];
+  items: GalleryItem[];
   prev: AdjacentCollectionLink | null;
   next: AdjacentCollectionLink | null;
 }) {
@@ -135,16 +135,18 @@ export function WorkPageClient({
     <>
       <SiteNav variant="work" />
       <LangSwitchButton lang={lang} onToggle={() => setLang((l) => (l === "en" ? "zh" : "en"))} />
-      <CollectionBlocksRender
+      <SeriesGallery
+        style={galleryStyle}
         theme={theme}
-        blocks={blocks}
-        mediaOptions={mediaOptions}
         lang={lang}
         titleEn={titleEn}
         titleZh={titleZh}
+        statementEn={statementEn}
+        statementZh={statementZh}
         year={year}
         category={category}
         pieceCount={pieceCount}
+        items={items}
         prev={prev}
         next={next}
       />

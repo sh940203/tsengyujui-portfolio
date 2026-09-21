@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState, useTransition } from "react";
 import type { collections, media } from "@/lib/db/schema";
+import r2ImageLoader from "@/lib/media/image-loader";
 import {
   batchDeleteMedia,
   rotateMedia,
@@ -17,6 +18,16 @@ type CollectionOption = Pick<typeof collections.$inferSelect, "id" | "slug" | "t
 
 const KIND_OPTIONS = ["final", "detail", "sketch", "poster", "process", "misc"] as const;
 const ROTATION_SEQUENCE = [0, 90, 180, 270] as const;
+
+/** 把圖先抓進瀏覽器快取；不管成功失敗都 resolve（預載失敗不該卡住旋轉流程）。 */
+function preloadImage(url: string) {
+  return new Promise<void>((resolve) => {
+    const img = new window.Image();
+    img.onload = () => resolve();
+    img.onerror = () => resolve();
+    img.src = url;
+  });
+}
 
 export function MediaCard({
   item,
@@ -37,13 +48,34 @@ export function MediaCard({
   const [focalMode, setFocalMode] = useState(false);
   const [altEn, setAltEn] = useState(item.altEn ?? "");
   const [altZh, setAltZh] = useState(item.altZh ?? "");
+  // 旋轉中先用 CSS 讓縮圖立刻轉給使用者看（伺服器重新生成四個尺寸要幾秒），
+  // 伺服器完成、新圖預載好之後才換成真正旋轉過的圖並拿掉這個暫時的 CSS 旋轉。
+  const [pendingDeg, setPendingDeg] = useState(0);
 
   function handleRotate() {
     const currentIndex = ROTATION_SEQUENCE.indexOf(item.rotation as (typeof ROTATION_SEQUENCE)[number]);
     const nextRotation = ROTATION_SEQUENCE[(currentIndex + 1) % ROTATION_SEQUENCE.length];
+    setPendingDeg(90);
     startTransition(async () => {
-      await rotateMedia({ mediaId: item.id, rotation: nextRotation });
-      onUpdated({ id: item.id, rotation: nextRotation });
+      try {
+        const result = await rotateMedia({ mediaId: item.id, rotation: nextRotation });
+        // 新變體在新的網址前綴上（見 src/lib/media/keys.ts）：先預載進快取，
+        // 換上去時才不會閃一下舊圖或空白。卡片縮圖 sizes=200px，會用到 400/800。
+        await Promise.all(
+          [400, 800].map((w) => preloadImage(r2ImageLoader({ src: result.r2Key, width: w }))),
+        );
+        onUpdated({
+          id: item.id,
+          rotation: nextRotation,
+          r2Key: result.r2Key,
+          width: result.width,
+          height: result.height,
+        });
+      } catch {
+        alert("旋轉失敗，請再試一次。");
+      } finally {
+        setPendingDeg(0);
+      }
     });
   }
 
@@ -111,6 +143,8 @@ export function MediaCard({
           style={{
             objectFit: "cover",
             objectPosition: `${item.focalX * 100}% ${item.focalY * 100}%`,
+            transform: pendingDeg ? `rotate(${pendingDeg}deg)` : undefined,
+            transition: pendingDeg ? "transform 0.25s ease" : "none",
           }}
         />
         {focalMode && (
@@ -129,7 +163,7 @@ export function MediaCard({
           onClick={handleRotate}
           title="旋轉 90°"
         >
-          旋轉 {item.rotation}°
+          {isPending && pendingDeg ? "旋轉中…" : `旋轉 ${item.rotation}°`}
         </button>
         <button
           type="button"

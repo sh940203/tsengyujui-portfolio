@@ -18,6 +18,8 @@ export async function generateAndUploadVariants(params: {
   originalBuffer: Buffer;
   rotation: Rotation;
   destPrefix: string;
+  uploadOriginal?: boolean;
+  onlyWidths?: readonly number[];
 }) {
   return generateAndUploadVariantsPure({
     ...params,

@@ -18,10 +18,12 @@ import { collections } from "@/lib/db/schema";
  * 「production build 會不會 strip 掉」這種不確定的假設。
  */
 export interface PublishedCollectionRow {
+  id: string;
   slug: string;
   titleEn: string;
   titleZh: string | null;
   statementEn: string | null;
+  statementZh: string | null;
   year: string | null;
   category: string | null;
   pieceCount: number | null;
@@ -54,10 +56,12 @@ export const getPublishedCollection = cache(
   async (slug: string): Promise<PublishedCollection | null> => {
     const [row] = await db
       .select({
+        id: collections.id,
         slug: collections.slug,
         titleEn: collections.titleEn,
         titleZh: collections.titleZh,
         statementEn: collections.statementEn,
+        statementZh: collections.statementZh,
         year: collections.year,
         category: collections.category,
         pieceCount: collections.pieceCount,
@@ -82,10 +86,12 @@ export const getPublishedCollection = cache(
     try {
       const snapshot = parsePublishedSnapshot(row.publishedSnapshot);
       const {
+        id,
         slug,
         titleEn,
         titleZh,
         statementEn,
+        statementZh,
         year,
         category,
         pieceCount,
@@ -100,10 +106,12 @@ export const getPublishedCollection = cache(
       } = row;
       return {
         row: {
+          id,
           slug,
           titleEn,
           titleZh,
           statementEn,
+          statementZh,
           year,
           category,
           pieceCount,

@@ -17,6 +17,7 @@ import {
 import { R2_BUCKET, R2_ORIGINALS_BUCKET } from "@/lib/r2/client";
 import { generateAndUploadVariants } from "@/lib/media/variants";
 import { VARIANT_WIDTHS } from "@/lib/media/constants";
+import { ROTATION_STATES, baseKeyOf, versionedKey } from "@/lib/media/keys";
 
 const MIME_ENUM = z.enum(["image/jpeg", "image/png", "image/webp"]);
 const KIND_ENUM = z.enum([
@@ -121,7 +122,13 @@ export async function finalizeMediaUpload(input: unknown) {
   return row;
 }
 
-// ── 3. 旋轉：重新生成同一 destPrefix 下的變體（覆蓋），公開 URL 不變 ────
+// ── 3. 旋轉：把新變體放到「新的網址前綴」，資料庫 r2Key 改指向它 ────────
+//
+// 不覆蓋同一個網址（變體是一年 immutable 快取，覆蓋後瀏覽器/CDN 不會重抓，
+// 縮圖與前台都不會變）——見 `src/lib/media/keys.ts`。順序是「先上傳新變體、
+// 再改資料庫」：中途失敗時資料庫仍指向完好的舊前綴，不會出現指向不存在物件
+// 的狀態。舊前綴的變體**刻意不立刻刪**：首頁等靜態頁面在重新驗證前，HTML
+// 裡還是舊網址，刪掉會變成破圖；殘留的舊變體會在刪除這張圖時一併清掉。
 
 const RotateSchema = z.object({
   mediaId: z.string().cuid2(),
@@ -137,21 +144,35 @@ export async function rotateMedia(input: unknown) {
   const row = rows[0];
   if (!row) throw new Error("NOT_FOUND");
 
-  const originalKey = `${row.r2Key}/original.${extensionFor(row.mimeType ?? "image/jpeg")}`;
+  const baseKey = baseKeyOf(row.r2Key);
+  const newKey = versionedKey(baseKey, rotation);
+  if (newKey === row.r2Key) {
+    return { rotation, r2Key: row.r2Key, width: row.width, height: row.height };
+  }
+
+  const originalKey = `${baseKey}/original.${extensionFor(row.mimeType ?? "image/jpeg")}`;
   const originalBuffer = await getObjectBuffer(R2_ORIGINALS_BUCKET, originalKey);
 
   const result = await generateAndUploadVariants({
     originalBuffer,
     rotation,
-    destPrefix: row.r2Key,
+    destPrefix: newKey,
+    uploadOriginal: false,
   });
 
   await db
     .update(media)
-    .set({ rotation, width: result.width, height: result.height })
+    .set({ r2Key: newKey, rotation, width: result.width, height: result.height })
     .where(eq(media.id, mediaId));
 
   revalidatePath("/admin/media");
+  // 首頁、關於頁是靜態產生的，HTML 裡寫著舊網址，要重新驗證才會換成新的；
+  // 系列頁本來就是逐請求渲染，一併標記無妨。
+  revalidatePath("/");
+  revalidatePath("/about");
+  revalidatePath("/work/[slug]", "page");
+
+  return { rotation, r2Key: newKey, width: result.width, height: result.height };
 }
 
 // ── 4. 焦點 ────────────────────────────────────────────────────────
@@ -260,13 +281,18 @@ export async function batchDeleteMedia(input: unknown) {
   const rows = await db.select().from(media).where(inArray(media.id, mediaIds));
 
   for (const row of rows) {
-    const deletions = VARIANT_WIDTHS.map((w) =>
-      deleteObject(R2_BUCKET, `${row.r2Key}/${w}.webp`).catch(() => {}),
+    // 這張圖曾經旋轉過的每個狀態都可能留有變體（舊前綴不會在旋轉當下刪掉，
+    // 見 rotateMedia 的說明）：基底本身＋四個角度的前綴全部清一遍，
+    // 沒有的物件刪除會直接略過。原檔只在基底前綴。
+    const baseKey = baseKeyOf(row.r2Key);
+    const prefixes = [baseKey, ...ROTATION_STATES.map((deg) => versionedKey(baseKey, deg))];
+    const deletions = prefixes.flatMap((prefix) =>
+      VARIANT_WIDTHS.map((w) => deleteObject(R2_BUCKET, `${prefix}/${w}.webp`).catch(() => {})),
     );
     deletions.push(
       deleteObject(
         R2_ORIGINALS_BUCKET,
-        `${row.r2Key}/original.${extensionFor(row.mimeType ?? "image/jpeg")}`,
+        `${baseKey}/original.${extensionFor(row.mimeType ?? "image/jpeg")}`,
       ).catch(() => {}),
     );
     await Promise.all(deletions);

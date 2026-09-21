@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
-import { inArray } from "drizzle-orm";
 import { notFound } from "next/navigation";
-import { extractMediaIds } from "@/lib/blocks/publish";
 import { getAdjacentCollections } from "@/lib/collections/get-adjacent-collections";
+import { galleryStyleFor } from "@/lib/collections/gallery-style";
 import { getPublishedCollection } from "@/lib/collections/get-published-collection";
-import { db } from "@/lib/db/client";
-import { media } from "@/lib/db/schema";
+import { getSeriesGallery } from "@/lib/collections/get-series-gallery";
 import { resolveOgImageUrl } from "@/lib/media/resolve-og-image";
 import { getProfile } from "@/lib/profile/get-profile";
 import {
@@ -82,25 +80,17 @@ export default async function WorkPage({
   const { slug } = await params;
   const found = await getPublishedCollection(slug);
   if (!found) notFound();
-  const { row, snapshot } = found;
+  const { row } = found;
 
-  // 只查這個系列快照裡真的引用到的 media，不是抓全站 media——原本沒有
-  // `where`，會把其他系列（含草稿）的 `r2Key`/`filename` 也一起撈出來，
-  // 見 `extractMediaIds()` 註解跟 SEO 批次全專案排查的結論。
-  const neededMediaIds = extractMediaIds(snapshot);
-  const [mediaRows, profileRow, image, adjacent] = await Promise.all([
-    neededMediaIds.length > 0
-      ? db
-          .select({
-            id: media.id,
-            r2Key: media.r2Key,
-            filename: media.filename,
-            altEn: media.altEn,
-            altZh: media.altZh,
-          })
-          .from(media)
-          .where(inArray(media.id, neededMediaIds))
-      : Promise.resolve([]),
+  // 2026-09-20 改版：右欄展示這個系列「全部作品」（`media` 表裡屬於這個系列的
+  // 所有圖，`getSeriesGallery` 只選需要的欄位），不再只顯示區塊編輯器引用到
+  // 的那幾張。上面的 visibility／已發布判斷（`getPublishedCollection`）維持
+  // 不變——草稿系列、從沒發布過的系列一樣 404，「發布」現在的作用是「系列
+  // 上線的開關」，區塊編輯器的排版不再影響公開頁面（admin 即時預覽 iframe
+  // 仍然使用區塊渲染）。
+  const galleryStyle = galleryStyleFor(row.theme);
+  const [items, profileRow, image, adjacent] = await Promise.all([
+    getSeriesGallery(row.id, galleryStyle),
     getProfile(),
     resolveOgImageUrl(row.ogImageId ?? row.coverImageId),
     getAdjacentCollections(slug),
@@ -124,20 +114,18 @@ export default async function WorkPage({
       <WorkPageClient
         slug={slug}
         theme={row.theme}
+        galleryStyle={galleryStyle}
         titleEn={row.titleEn}
         titleZh={row.titleZh}
+        statementEn={row.statementEn}
+        statementZh={row.statementZh}
         year={row.year}
         category={row.category}
         pieceCount={row.pieceCount}
         requiresConsent={row.requiresConsent}
         consentNoteEn={row.consentNoteEn}
         consentNoteZh={row.consentNoteZh}
-        blocks={snapshot.map((block) => ({
-          id: block.id,
-          type: block.type,
-          config: block.config as Record<string, unknown>,
-        }))}
-        mediaOptions={mediaRows}
+        items={items}
         prev={adjacent.prev}
         next={adjacent.next}
       />

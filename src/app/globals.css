@@ -181,3 +181,128 @@ body {
     transform: scale(0.94);
   }
 }
+
+/*
+ * 系列內頁「作品長廊」（`src/app/work/[slug]/series-gallery.tsx`，2026-09-20）。
+ * 進場狀態 `data-reveal`：沒有這個屬性 = 伺服器端輸出／JS 還沒接手（完全可見，
+ * 沒 JS 也看得到作品）；`hidden` = 掛載後判斷在畫面外、等捲進來；`in` = 已經
+ * 進場、播動畫。`prefers-reduced-motion` 一律直接顯示、不播任何動畫（SPEC §9.2）。
+ */
+@keyframes gallery-flash {
+  0% {
+    opacity: 0;
+    filter: brightness(3.4) contrast(1.5);
+  }
+  30% {
+    opacity: 1;
+    filter: brightness(2.2) contrast(1.25);
+  }
+  100% {
+    opacity: 1;
+    filter: none;
+  }
+}
+
+/* Cumedy Night：直打閃燈——亮度瞬間爆高再「硬切」（steps）回正常，不是柔和淡入 */
+.gallery-flash[data-reveal="hidden"] {
+  opacity: 0;
+}
+.gallery-flash[data-reveal="in"] {
+  animation: gallery-flash 0.24s steps(3, end) both;
+}
+
+/* 淨土：緩慢浮現，一屏一件的節奏 */
+.gallery-still[data-reveal="hidden"] {
+  opacity: 0;
+  transform: translateY(28px);
+}
+.gallery-still[data-reveal="in"] {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 1.6s ease,
+    transform 1.6s ease;
+}
+
+/* X-venom：像神經接觸不良——亮暗閃兩下才穩定（只動 opacity，不跟抖動的 transform 衝突） */
+@keyframes gallery-venom-in {
+  0% {
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.9;
+  }
+  42% {
+    opacity: 0.2;
+  }
+  62% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+.gallery-venom[data-reveal="hidden"] {
+  opacity: 0;
+}
+.gallery-venom[data-reveal="in"] {
+  animation: gallery-venom-in 0.5s linear both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gallery-flash,
+  .gallery-still,
+  .gallery-venom {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+}
+
+/* Cumedy Night 拼貼的滑鼠懸停：只在真的有滑鼠的裝置上（觸控裝置沒有 hover） */
+@media (hover: hover) {
+  .gallery-flash-grid:hover .gallery-flash-item {
+    opacity: 0.5;
+  }
+  .gallery-flash-grid .gallery-flash-item:hover {
+    opacity: 1;
+    z-index: 40;
+    transform: rotate(0deg) scale(1.04);
+  }
+}
+
+/*
+ * X-venom「感染擴散」的神經失控：`--v`（0~1，由捲動速度決定，見
+ * series-gallery.tsx 的 VenomGallery）越大，作品越抖越歪；停下來後 `--v` 歸零，
+ * 靠 transition 平順恢復。減少動態偏好時一律不動。
+ */
+.venom-jitter {
+  transform: translateX(calc(var(--v, 0) * var(--jx, 0px))) skewX(calc(var(--v, 0) * var(--jsk, 0deg)));
+  transition: transform 0.4s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .venom-jitter {
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
+/* 雙語敘述：主要語言排前面（跟 `.lang-en`/`.lang-zh` 的主從一致，SPEC §6.1） */
+.statement-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+[data-lang="zh"] .statement-stack .lang-zh {
+  order: -1;
+}
+
+/* Cumedy Night 拼貼的每一張：傾斜/位移由行內的 --r/--x 決定，懸停時才被覆蓋 */
+.gallery-flash-item {
+  transform: rotate(var(--r, 0deg)) translateX(var(--x, 0px));
+  transition:
+    opacity 0.12s steps(2),
+    transform 0.12s steps(2);
+}
