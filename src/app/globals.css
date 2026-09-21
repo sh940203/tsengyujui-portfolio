@@ -92,15 +92,46 @@ body {
 }
 
 /*
- * UI/UX 稽核（2026-09-16）抓到：首頁系列列表的雙語標題在窄螢幕換行時，
- * 中文會緊貼在英文換行後的最後一個字後面（例如「Land在最後的淨土上
- * 孤獨」），跟全站故意讓短標籤中英文緊貼（例如「Fashion Designer服裝
- * 設計師」，那些字串短到不會換行）不是同一回事——這裡容易誤讀成同一個
- * 詞。只在 `.series-title-lang` 這個範圍內的 `.lang-zh` 加一點間距，
- * 不動 `Lang` 元件全站共用的預設樣式。
+ * 系列標題（首頁系列區塊、系列內頁左欄）的雙語排版：英文、中文「各佔一行」，
+ * 中文不會從中間斷開（使用者回報「在最後的淨土 / 上孤獨」、「X- / venom」被硬切
+ * 很難看）。原本（2026-09-16）是讓中文緊貼在英文最後一個字後面、只加一點間距，
+ * 標題一長就會在兩種語言之間任意斷行。主要語言排前面（`data-lang="zh"` 時中文
+ * 在上）。中文是次要語言時（EN 模式，字級 0.55em）一律不換行——短到放得下；
+ * 中文是主要語言時（字級 1em）允許換行並平衡斷行。
  */
+.series-title-lang {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25em;
+}
+[data-lang="zh"] .series-title-lang .lang-zh {
+  order: -1;
+}
+.series-title-lang .lang-en,
 .series-title-lang .lang-zh {
-  margin-left: 0.35em;
+  display: block;
+  text-wrap: balance;
+}
+[data-lang="en"] .series-title-lang .lang-zh {
+  white-space: nowrap;
+}
+
+/*
+ * 「內文/按鈕」用的雙語：SPEC §6.1 的次要語言 0.55em 對標題與短標籤合理，對整段
+ * 敘述文字太小（約 8px，使用者回報中文讀不了）。掛 `lang-readable` 的範圍內，次要
+ * 語言改成 0.85em、透明度 0.75（對比度 > 4.5:1），中文行距加大。
+ */
+[data-lang="en"] .lang-readable .lang-zh,
+[data-lang="zh"] .lang-readable .lang-en {
+  font-size: 0.85em;
+  opacity: 0.75;
+}
+[data-theme="light"][data-lang="en"] .lang-readable .lang-zh,
+[data-theme="light"][data-lang="zh"] .lang-readable .lang-en {
+  opacity: 0.75;
+}
+.lang-readable .lang-zh {
+  line-height: 1.95;
 }
 
 /*
@@ -305,4 +336,37 @@ body {
   transition:
     opacity 0.12s steps(2),
     transform 0.12s steps(2);
+}
+
+/*
+ * 手機（< lg）往下捲時收起固定在畫面上的導航與切換鈕（`SiteNav` 的
+ * `useAutoHideChrome` 設定 `<html data-chrome-hidden>`），往上捲或回到頂端再出現。
+ * 減少動態偏好時不做位移動畫，直接顯示/隱藏。
+ */
+@media (max-width: 1023px) {
+  [data-chrome] {
+    transition:
+      transform 0.25s ease,
+      opacity 0.25s ease;
+  }
+  html[data-chrome-hidden="true"] [data-chrome] {
+    transform: translateY(-160%);
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-chrome] {
+    transition: none;
+  }
+}
+
+/* 首屏「往下瀏覽」提示：一條細線裡有一段亮線由上往下滑，循環（尊重 reduced-motion，由 `motion-safe:` 控制） */
+@keyframes scroll-cue {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(200%);
+  }
 }

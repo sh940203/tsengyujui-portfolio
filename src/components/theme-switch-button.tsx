@@ -9,10 +9,11 @@ import { SWITCH_BUTTON_BASE_CLASS } from "@/components/lang-switch-button";
  * 首頁/關於頁這種固定用 SPEC §5.1 `--ui-black`/`--ui-white` 的頁面，不
  * 影響系列頁——系列頁的底色是作品的一部分，不該被使用者偏好覆蓋。
  *
- * 跟 `LangSwitchButton` 用同一顆按鈕的視覺基底（`SWITCH_BUTTON_BASE_CLASS`）
- * 疊成同一叢，文字換成 DARK/LIGHT。跟 `LangSwitchButton` 同一種顯示邏輯
- * ——顯示「目前狀態」（目前是 dark 就顯示 DARK），不是顯示「按下去會變
- * 成什麼」，兩顆按鈕的互動慣例保持一致。
+ * 跟 `LangSwitchButton` 用同一顆按鈕的視覺基底（`SWITCH_BUTTON_BASE_CLASS`）疊成
+ * 同一叢。2026-09-22 引導改版：原本顯示文字「DARK」/「LIGHT」（目前狀態），第一
+ * 次來的人分不出是「現在是深色」還是「按了變深色」。改成圖示，顯示「按下去會變成
+ * 的樣子」（深色模式顯示太陽＝按了變亮、淺色模式顯示月亮），這是最普遍的慣例，
+ * 加上 `title` 提示與 `aria-label`。
  */
 export function ThemeSwitchButton({
   uiTheme,
@@ -26,9 +27,29 @@ export function ThemeSwitchButton({
       type="button"
       onClick={onToggle}
       aria-label={uiTheme === "dark" ? "Switch to light mode / 切換為淺色" : "Switch to dark mode / 切換為深色"}
+      title={uiTheme === "dark" ? "切換為淺色 / Light mode" : "切換為深色 / Dark mode"}
       className={SWITCH_BUTTON_BASE_CLASS}
     >
-      {uiTheme.toUpperCase()}
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        {uiTheme === "dark" ? (
+          <>
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+          </>
+        ) : (
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+        )}
+      </svg>
     </button>
   );
 }

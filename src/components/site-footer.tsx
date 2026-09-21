@@ -26,7 +26,8 @@ export function SiteFooter({
 }) {
   const year = new Date().getFullYear();
   const logotype = NAME_LOGOTYPE.en;
-  const linkClass = "w-fit hover:text-[var(--ui-fg)]";
+  // 手機上連結要有 44px 的點擊高度（文字只有約 11px 高）；桌機維持原本緊湊的排列
+  const linkClass = "inline-flex min-h-11 w-fit items-center hover:text-[var(--ui-fg)] lg:min-h-0";
 
   return (
     <footer className="bg-[var(--ui-bg)] px-6 pb-8 pt-[clamp(4rem,9vw,9rem)] text-[var(--ui-muted)] lg:px-16">
@@ -35,7 +36,7 @@ export function SiteFooter({
           className={`grid gap-10 sm:grid-cols-2 ${langFontClass("en", "ui")}`}
           style={{ fontSize: "0.7rem", letterSpacing: "0.18em" }}
         >
-          <nav aria-label="Footer" className="flex flex-col gap-3">
+          <nav aria-label="Footer" className="flex flex-col gap-0 lg:gap-3">
             <Link href="/#series" className={linkClass}>
               <Lang en="Work" zh="作品" role="ui" />
             </Link>
@@ -43,7 +44,7 @@ export function SiteFooter({
               <Lang en="About" zh="關於" role="ui" />
             </Link>
           </nav>
-          <div className="flex flex-col gap-3 sm:items-end">
+          <div className="flex flex-col gap-0 sm:items-end lg:gap-3">
             {email && (
               <a href={`mailto:${email}`} className={linkClass}>
                 {email}

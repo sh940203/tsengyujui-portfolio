@@ -29,9 +29,12 @@ import { ThemeSwitchButton } from "@/components/theme-switch-button";
  */
 export function LangPageWrapper({
   navVariant,
+  hasBio = true,
   children,
 }: {
   navVariant: "home" | "about";
+  /** 簡介有沒有內容——沒有的話導覽不顯示「Bio」（首頁沒有 `#bio` 區塊，連結會是死的）。 */
+  hasBio?: boolean;
   children: React.ReactNode;
 }) {
   const [lang, setLang] = useState<"en" | "zh">("en");
@@ -39,8 +42,8 @@ export function LangPageWrapper({
 
   return (
     <div data-lang={lang} data-ui-theme={uiTheme} className={langFontVariables}>
-      <SiteNav variant={navVariant} />
-      <div className="fixed top-4 right-4 z-50 flex flex-col items-end gap-2">
+      <SiteNav variant={navVariant} lang={lang} hasBio={hasBio} />
+      <div data-chrome className="fixed top-4 right-4 z-50 flex flex-col items-end gap-2">
         <LangSwitchButton unpositioned lang={lang} onToggle={() => setLang((l) => (l === "en" ? "zh" : "en"))} />
         <ThemeSwitchButton uiTheme={uiTheme} onToggle={() => setUiTheme((t) => (t === "dark" ? "light" : "dark"))} />
       </div>

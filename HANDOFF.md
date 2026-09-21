@@ -3,7 +3,7 @@
 > 交接文件，供下一個 session 直接接手，不需重新翻對話紀錄。
 > 完整規格見 [SPEC.md](./SPEC.md)。本文件只記錄「規格書之外」的現況、決策與驗證結果。
 >
-> 產生時間：2026-09-13（2026-09-14 更新：即時預覽 iframe、草稿/發布機制、發布狀態樂觀更新、共用渲染元件搬遷 + 設計系統、lens 互動修復、`/work/[slug]` 前台頁面、SPEC §6 語言系統、首頁、Hero 背景輪播 + 精選照後台管理、關於頁、內容提示層、SEO/AEO/GEO 收尾、全專案「select 整列」洩漏排查、git 歷史/GitHub/Vercel 上線、無障礙+效能稽核皆已完成；2026-09-15 更新：三系列切公開發布、金點新秀證書上線、SPEC §10.4 大部分項目收斂；2026-09-16～09-19 更新（Phase 6）：EMAIL_SERVER/EMAIL_FROM（Resend）與 Vercel Preview 環境變數皆已由業主補齊、UI/UX 精修批次（導航、圖片顯示、淺色深色切換、統計數字區塊、系列頁釘住標題、首頁 Hero 雙欄同系列配對輪播、後台配對預覽、本機測試登入捷徑）——**本機驗證過，尚未 git push**，見 §1.1）
+> 產生時間：2026-09-13（2026-09-14 更新：即時預覽 iframe、草稿/發布機制、發布狀態樂觀更新、共用渲染元件搬遷 + 設計系統、lens 互動修復、`/work/[slug]` 前台頁面、SPEC §6 語言系統、首頁、Hero 背景輪播 + 精選照後台管理、關於頁、內容提示層、SEO/AEO/GEO 收尾、全專案「select 整列」洩漏排查、git 歷史/GitHub/Vercel 上線、無障礙+效能稽核皆已完成；2026-09-15 更新：三系列切公開發布、金點新秀證書上線、SPEC §10.4 大部分項目收斂；2026-09-16～09-19 更新（Phase 6）：EMAIL_SERVER/EMAIL_FROM（Resend）與 Vercel Preview 環境變數皆已由業主補齊、UI/UX 精修批次（導航、圖片顯示、淺色深色切換、統計數字區塊、系列頁釘住標題、首頁 Hero 雙欄同系列配對輪播、後台配對預覽、本機測試登入捷徑）——已全部 commit 並 push（2026-09-22），見 §1.1）
 >
 > **上線網址：https://tsengyujui-portfolio.vercel.app**（GitHub：私有 repo `sh940203/tsengyujui-portfolio`）
 
@@ -11,7 +11,7 @@
 
 ## 1. 專案現況總覽
 
-**目前位置：Phase 3（Block Editor）、Phase 4（前台）、Phase 5（SEO/AEO/GEO 收尾 + 無障礙 + 效能，SPEC §13 項目 27–29）全部完成。三個系列已於 2026-09-15（第十二批）切成 `public` 並發布，正式站三個系列頁、首頁列表、sitemap/llms.txt 皆已可公開瀏覽（見 §3.1、§1.1 第十二批）。專案已經正式上線到 Vercel（https://tsengyujui-portfolio.vercel.app ，GitHub 私有 repo `sh940203/tsengyujui-portfolio`）。⚠️ 第十二批的程式碼與文件變更（淺色主題對比度修復、SPEC/HANDOFF 更新）目前只在本機驗證，尚未 `git push`，等業主同意後才推上去。DB 端的 visibility/發布/證書變更已直接寫入生產 Turso，但**目前只有 `curl` 正式站 `/work/[slug]` 實測會拿到新的內容**（這幾頁沒有 `generateStaticParams`，是逐請求動態渲染，直接反映 DB 最新狀態）；**首頁 `/` 跟 `sitemap.xml` 這批 curl 復驗過仍是舊的（系列列表是空的、sitemap 沒有 `/work/*` 網址）**——這兩者是建置時期靜態產生的頁面，跟 HANDOFF §1.1 第八批 bug 3 抓到的成因一樣：這批是直接寫 DB，沒有經過任何會呼叫 `revalidatePath` 的 server action，正式站這個部署的 Full Route Cache 不會自動感知到 DB 變了。等業主同意這批改動、真的 `git push` 觸發下一次部署時，新的 build 會用當下 DB 的最新資料重新產生首頁/sitemap，屆時會自動一起變成最新——不需要額外操作，但**在那之前，正式站首頁看起來還是舊的空狀態，是預期中的暫時落差，不是這批操作失敗**。Lighthouse 對正式站實測：首頁/關於頁 Performance 94–99、Accessibility 100、Best Practices 96、SEO 100，全部超過 SPEC §9.3 目標。**
+**目前位置（2026-09-22 更新）：Phase 1–6 全部完成並已 push 上線**（https://tsengyujui-portfolio.vercel.app ，GitHub 私有 repo `sh940203/tsengyujui-portfolio`，`main` 分支推送即自動部署 Vercel）。Phase 6（UI/UX 精修，§1.1 第 1–17 項）是最近的工作：首頁 Hero 雙欄同系列輪播＋姓名專屬字樣、首頁下半部改版、系列頁「左欄固定敘述／右欄捲動全部作品」三種風格長廊、後台旋轉即時預覽、手機版優化、第一次來訪引導。三個系列 `public` 並已發布；Lighthouse（2026-09-15 稽核）首頁/關於頁 Performance 94–99、Accessibility 100、Best Practices 96、SEO 100。**新 session 請先讀 §1.1 Phase 6 第 11–17 項與 §6。**
 
 **上線前還差的東西**：~~`EMAIL_SERVER`/`EMAIL_FROM`~~、~~Preview 環境變數~~ 兩項業主都已經自行補齊（Resend 用於 Production、Gmail 用於本機 `.env.local`；Preview 透過 Vercel Dashboard 手動填入，含一組獨立產生的 Preview 專用 `AUTH_SECRET`）——只剩 **Preview 專用的獨立 Turso/R2**（SPEC §1.2 建議，目前跟 Production 共用，非必要）。
 
@@ -480,7 +480,7 @@ Phase 4 主要頁面（首頁、系列內頁）到這裡都完成了。SPEC.md �
 
 **測試方法**：全部針對本機 `pnpm dev`（`localhost:3050`，接的是同一顆生產 Turso 資料庫）截圖驗證；`tsc --noEmit`、`eslint src` 全專案通過；`git status` 確認只有 `src/app/globals.css`、`src/components/blocks/render/block-render.tsx` 兩個檔案異動（加上這次的 SPEC.md/HANDOFF.md 文件更新），沒有動到其他既有邏輯。**這批完全沒有 `git push`**——業主要求先在本機看過所有結果，本人同意後才推上 GitHub（會觸發 Vercel 重新部署）。
 
-**Phase 6 — UI/UX 精修批次（2026-09-16 ～ 09-20；第 1–10 項與 Hero 專屬字樣已於 2026-09-20 commit `dfece58` 並 push、Vercel 部署 READY，正式站已驗證；第 11 項已於 `a2b2ff2` push；第 12、13、14 項尚未 commit）**
+**Phase 6 — UI/UX 精修批次（2026-09-16 ～ 09-22；第 1–17 項全部已 commit 並 push，見 `git log`；每項的驗證細節與尚未肉眼確認的部分都寫在各項裡）**
 
 業主要求前後台一起雕琢 UI/UX，這批橫跨好幾個對話回合累積而成，統一在這裡記錄。**全程沒有 push**，本機驗證完就等業主看過決定。
 
@@ -514,14 +514,14 @@ Phase 4 主要頁面（首頁、系列內頁）到這裡都完成了。SPEC.md �
 
 10. **後台新增本機測試登入捷徑**（`src/app/admin/login/dev-login-action.ts`）——業主反應真實 Magic Link 流程（等信、點連結）拖慢自己測試的速度，要求先簡化、上線前再加回安全強度。**這支刻意設計成不需要記得之後拿掉**：`devLogin()` 第一行就擋 `process.env.NODE_ENV === "production"`，Vercel production 部署這個值一定是 `"production"`（Next.js 內建行為，不是本專案自訂環境變數，不會因為業主忘記關閉設定而變成正式站後門）。效果等同 HANDOFF 過去記錄的手動測試方式（直接插入 session 列 + 設 cookie），差別是自動化成登入頁一顆按鈕（只在非 production 顯示）。實測：點擊後直接建立 session、導向 `/admin/collections`，跟正常 Magic Link 登入產生的 session 完全相容。
 
-11. **首頁下半部改版（2026-09-20，業主指定參考 aoiofficial.com「往下滑的區域」，本機驗證、尚未 commit/push）**——只借用版面手法，沒有用對方的文案與圖片：
+11. **首頁下半部改版（2026-09-20，業主指定參考 aoiofficial.com「往下滑的區域」，本機驗證後已 push）**——只借用版面手法，沒有用對方的文案與圖片：
    - **系列區塊**（`src/app/home-sections.tsx` 的 `SeriesSections`，取代原本的 `SeriesList`）：每個系列一整段，底色用該系列自己的 `theme`（SPEC §4.3；現在依 sortOrder 是淨土 light → Cumedy dark → X-venom void，天然有黑白交替的節奏）。桌機 12 欄格線，文字欄（序號、標題、年份—類型、「查看系列」連結）`sticky` 釘住、右邊拼貼往上捲過，奇偶段左右交替（DOM 順序永遠文字在前，只用 CSS 格線位置換邊）；拼貼是一張高圖（系列封面 `coverImageId`，沒設就用精選池第一張）＋兩張小圖錯位（`getSeriesShowcase()`，`src/lib/media/featured.ts`，沿用精選/fallback 池、只選需要的欄位、只查 public 系列）。拼貼整塊是連到系列頁的連結但 `aria-hidden` + `tabIndex=-1`（同目的地已有「查看系列」連結）。系列區塊底色是「作品的一部分」，**不受**右上角淺色/深色切換影響（切換只影響 Hero、簡介、頁尾）。仍然只有 SPEC §4.2 規定的資訊，不帶 statement 摘要。
    - **簡介區塊**（`BioSection`）：有圖時做成「捲動釘住的宣言區」——外層 200vh、裡面 `sticky` 滿版容器（圖＋45% 黑遮罩＋置中白字），純 CSS、沒有 scroll 監聽；圖用 `aboutImageId`，沒有就退回 `heroImageId`，都沒有就退回單純置中文字。**bio 目前仍是空的（待業主提供），所以這整段現在不會顯示，沒有肉眼驗證過視覺效果**。
    - **頁尾**（`src/components/site-footer.tsx`，首頁與關於頁共用）：兩組極小、字距拉開的連結（Work／About、信箱／Instagram）＋最底下滿寬姓名字樣（`NAME_LOGOTYPE.en`，用 CSS mask、顏色取 `--ui-fg`，所以淺色/深色切換時跟著變色）；字樣沒設時退回同尺度的文字。
    - **重構**：姓名字樣設定檔從 `src/app/hero-logotype.ts` 搬到 `src/lib/brand/name-logotype.ts`（`NAME_LOGOTYPE`，Hero 與頁尾共用）；三種系列主題色抽到 `src/lib/collections/theme-colors.ts`（`block-render.tsx` 是 `"use client"`，server component 不能從它 import 常數），`block-render.tsx` 改從那裡取。
    - **驗證**：桌機 1440／手機 390 用 DOM 量過——三段主題色（light/dark/void）、文字欄 `position: sticky`、偶數段左右換邊、拼貼寬度、無橫向捲動、頁尾字樣滿寬且切主題時變色；9 張拼貼圖的 R2 網址全部 curl 回 200 `image/webp`；`tsc`、`eslint src` 通過。**⚠️ 沒有肉眼看過實際畫面**（瀏覽器面板是隱藏狀態，截圖是空白的，懶載入圖片也不會觸發），拼貼的錯位比例、間距、字級都是憑參考站的量測值＋判斷，需要業主實際看過調整。Cumedy Night（含裸露內容、`requiresConsent`）的圖現在也出現在首頁拼貼，跟 Hero 輪播用同一個精選池，首頁原本就有它的封面圖，不是這批新增的曝光，但如果業主想避開，需要另外決定。
 
-12. **系列內頁改版：左欄固定敘述、右欄捲動系列全部作品（2026-09-21，業主指出「圖片不齊全、文字佔太大版面」，本機驗證、尚未 commit/push）**——
+12. **系列內頁改版：左欄固定敘述、右欄捲動系列全部作品（2026-09-21，業主指出「圖片不齊全、文字佔太大版面」，本機驗證後已 push）**——
    - **⚠️ 最大的決策：公開的 `/work/[slug]` 不再用區塊編輯器（Block Editor）的排版，改成直接讀 `media` 表裡屬於該系列的全部圖**（`src/lib/collections/get-series-gallery.ts`）。visibility／已發布判斷（`getPublishedCollection`）完全沒動——草稿與從沒發布過的系列一樣 404，「發布」現在的作用是「系列上線的開關」，區塊編輯器的排版**不再影響公開頁面**（admin 即時預覽 iframe 仍用 `CollectionBlocksRender`，沒動）。要退回原本行為，只需把 `page.tsx`／`work-page-client.tsx` 改回 `CollectionBlocksRender`。**副作用：Cumedy Night 原本業主要自己在區塊編輯器從 33 張成品照精選 8–12 張，現在全部 48 件（33 成品＋4 海報＋11 手繪）都會上架**；內容提示層（`requiresConsent`）仍然有效。如果業主想保留精選權，需要新增「這張圖要不要在長廊顯示」之類的欄位（例如 `media.galleryHidden`）——還沒做。
    - **版面**（`src/app/work/[slug]/series-gallery.tsx`）：桌機左欄 36% `sticky` 釘住（標題、年份—類型—件數［目前三欄都是 null 所以不顯示］、完整雙語敘述、目前第幾件的計數＋進度線）、右欄 64% 捲動全部作品；手機上下堆疊，敘述預設收合成約 6 行、有「閱讀概念」展開鈕。同意提示層、左上導航、EN/ZH 切換、上一個/下一個系列都保留。舊的 `PinnedTitle`／`CollectionStats` 不再用在公開頁（只剩 admin 預覽在用）。
    - **三種展示風格**（`src/lib/collections/gallery-style.ts`，**風格直接由系列 `theme` 決定**：dark→flash、light→still、void→venom，不加資料庫欄位——三個系列的體感跟主題本來就一對一；新系列會依主題自動得到風格，體感不一致時再改成欄位）：
@@ -532,7 +532,7 @@ Phase 4 主要頁面（首頁、系列內頁）到這裡都完成了。SPEC.md �
    - **驗證**（桌機 1440、手機 390，用 DOM 量）：三個系列各自的結構、左欄 `sticky`、進度 `--p` 與計數（06/19→12/19→18/19、23/48、18/18）隨捲動正確更新；淨土敘述亮起行依進度前進；venom（透鏡版）的模糊/亮度/遮罩洞座標/間距/寬度/行距/重影都量過，之後換成感染擴散版，另外量過：海報 6 張無切邊、非海報尖刺深度遞增、斑點密度隨頁面往下遞增、連續快速捲動 `--v`=1.00 且停止後歸零、手機版無橫向捲動；手機收合/展開；同意提示層仍擋 Cumedy；`tsc`、`eslint src` 通過、console 無錯誤。**抓到並修掉一個 bug**：Cumedy 圖片傾斜＋位移造成右邊超出視窗約 9px、出現橫向捲動，改用 `overflow-x: clip`（不會建立捲動容器，不影響 sticky）。
    - **⚠️ 沒有肉眼看過任何畫面**（瀏覽器面板是隱藏狀態，截圖空白、`requestAnimationFrame`/CSS 轉場/懶載入圖片/`IntersectionObserver` 都不會跑）：閃燈動畫的手感、淨土的節奏、透鏡的視覺效果、間距與傾斜角度都只是依數值判斷；`prefers-reduced-motion` 只寫了 CSS（一律直接顯示、隱藏透鏡）沒有實測；（原本的透鏡在 Safari 的相容性疑慮隨著取消透鏡已不存在；`clip-path` 多邊形各瀏覽器支援良好。）另外抓到並修掉一個 hydration 警告：斑點的行內樣式用未取整的長小數，瀏覽器解析 style 屬性時會四捨五入、React 誤判成 mismatch，改成固定小數位＋用 `backgroundImage` 而非 `background` 簡寫。
 
-13. **後台旋轉：預覽即時反映＋網址跟著內容變（2026-09-21，業主要求「後端旋轉後預覽要即時顯示前端最後的樣子」，本機驗證、尚未 commit/push）**——
+13. **後台旋轉：預覽即時反映＋網址跟著內容變（2026-09-21，業主要求「後端旋轉後預覽要即時顯示前端最後的樣子」，本機驗證後已 push）**——
    - **根本問題**：`rotateMedia` 原本把新變體覆蓋在**同一個 R2 網址**上，而變體是 `Cache-Control: immutable, max-age=1 年`——縮圖網址旋轉前後完全一樣，瀏覽器/CDN 不會重抓，所以旋轉後只有「旋轉 90°」文字會變、縮圖不動（重新整理也可能還是舊圖），**前台也一樣**（已看過舊圖的訪客一年內都是舊方向）。
    - **做法**（`src/lib/media/keys.ts`）：旋轉後變體放到**新的網址前綴** `${base}~${rotation}`，資料庫 `media.r2Key` 改指向它；因為前台/後台 21 個檔案都是讀資料庫的 `r2Key` 組網址，一改就全部同步，不用一個個加版本參數。網址與內容一對一（同一前綴永遠是同一個角度），所以永久快取安全；`~0` 和沒有後綴的舊網址不同，避免撞到過期快取。**原檔（私有 bucket）永遠留在基底前綴** `${base}/original.*`（`generateAndUploadVariants` 新增 `uploadOriginal` 參數，旋轉時傳 false）。從沒旋轉過的圖（含匯入時就帶 rotation 的淨土手繪稿）`r2Key` 就是基底本身，不受影響。
    - **順序與安全性**：先上傳新變體、再改資料庫（中途失敗時資料庫仍指向完好的舊前綴）；成功後 `revalidatePath` 首頁、關於頁（靜態產生，HTML 裡是舊網址）、`/work/[slug]`。**舊前綴的變體旋轉當下刻意不刪**（靜態頁重新驗證前 HTML 還是舊網址，刪了會破圖），殘留物件在刪除該張圖時由 `batchDeleteMedia` 一次清掉（基底＋四個角度的前綴各清一遍；原檔在基底前綴）。副作用：每旋轉一次會在 R2 多留約 4 個小檔（可接受，不主動清理）。
@@ -545,6 +545,33 @@ Phase 4 主要頁面（首頁、系列內頁）到這裡都完成了。SPEC.md �
    - **修法**：`generateAndUploadVariants`（`src/lib/media/generate-variants.ts`）不再跳過，四個尺寸一律生成，`withoutEnlargement` 保證不放大畫素（大尺寸檔就是原始尺寸那份）；新增 `onlyWidths` 選項（只補指定寬度）。SPEC §1.3 那條規則同步改掉。
    - **補檔（真實 R2）**：全站 86 筆 media 檢查 344 個變體網址，缺檔 11 筆（Cumedy 手繪稿 9＋海報 1〔只缺 2400〕＋未指派系列 1〔關於頁的證書，只用小尺寸所以沒破圖〕）；用臨時腳本從私有 bucket 的原檔重新生成**只缺的那幾個尺寸**（已存在的檔案沒動），11 筆全成功；補完再查 **344/344 全部 200**，補上的檔案是原始尺寸（988×1656）沒放大。臨時腳本已刪。
    - **教訓**：載入器與「變體是否存在」是隱含耦合——任何生成變體的路徑（上傳、旋轉、匯入腳本）都必須保證四個尺寸齊全；驗證圖片時要拿高解析度（DPR 2）、大視窗的情境，不能只用小視窗量版面。
+
+15. **手機版 UI/UX 優化（2026-09-21，業主要求，本機驗證後已 push）**——**第一次真的看到手機畫面**：之前瀏覽器面板是隱藏的、截圖空白，只能量數字；這次改用 `puppeteer-core`（裝在對話暫存目錄，不進專案）＋本機 Chrome 做**真正的裝置模擬**（390×844、DPR 2、觸控、iPhone UA），可以截圖、真的捲動、量計算後樣式。⚠️ 教訓：純 `chrome --headless --window-size=390` 不準——無頭 Chrome 視窗最小寬約 500px，畫面是被裁成 390 的，右上角固定按鈕會消失、版面也不是真的 390 寬。
+   - **看到的問題與修法**：
+     1. **固定在畫面上的導航與右上兩顆 44px 切換鈕一直蓋住內容**（標題被 DARK 按鈕蓋掉一個字、導航壓在圖上）→ 手機（<1024px）往下捲就收起（`opacity 0` + 位移）、往上捲或回到頂端（<80px）再出現、鍵盤 Tab 進去會立刻顯示；`SiteNav` 改成 client 元件、用 `<html data-chrome-hidden>` 旗標＋`[data-chrome]` CSS（`globals.css`）；桌機不受影響（CSS 只在 max-width:1023px）；尊重 `prefers-reduced-motion`。
+     2. **點擊範圍太小**（「查看系列」與頁尾連結約 14px 高、導航連結 35px、同意提示按鈕 36px）→ 全部提到 ≥44px（導航連結、「查看系列」、頁尾連結、同意/返回按鈕；頁尾連結桌機維持原本緊湊）。
+     3. **淨土敘述在手機上幾乎是灰的**（「隨捲動逐行亮起」只在桌機左欄釘住時看得到，手機文字捲走後調暗只會難讀）→ 只有 lg 以上才套用調暗（`lg:opacity-[var(--lo)]`）。
+     4. **淨土每件作品之間空一大片**（強制 `100svh`，手機圖只有約 470px 高，前後各空 450px）→ 手機不強制滿屏、間距縮小（`py-[9svh]`）、圖寬 88%；作品間距 450px→180px、整頁高度 16663px→11662px（約少 30%）；桌機維持一屏一件。
+     5. **手機沒有左欄，捲動時看不到目前第幾件** → 系列頁補一個固定在右下角的小計數＋進度線（一開始透明、捲進作品區才淡入；`lg:hidden`）。
+     6. **關於頁證書被裁切**（直式證書被放進 4:3 框 + `cover`，上方標題與下方印章被截掉，**所有裝置都有**）→ 用證書真實比例（從 `media.width/height` 算）＋`contain`，完整顯示。
+   - **驗證**（真實裝置模擬）：控制列 top→往下捲 900px→往上捲 200px→再往下→Tab 聚焦，狀態依序是 顯示→收起→顯示→收起→顯示；點擊範圍量到導航 44、「查看系列」44、頁尾 44、切換鈕 44、同意按鈕 44；淨土手機敘述透明度全為 1、作品間距 180px、小計數在頂端透明、捲到中段顯示「05 / 19」；證書框 320×448（比例 0.714＝原圖 400×560）；桌機 1440 沒有退化（控制列不收、敘述照常逐行亮起〔0.55,1,0.22…〕、左欄釘住、小計數不出現）；`tsc`、`eslint src` 通過。
+   - **沒改但看過、觀感 OK**：首頁 Hero（兩張圖上下堆疊，姓名字樣沒超出）、Cumedy 兩欄緊貼拼貼、X-venom 鋸齒邊與鏽紅斑點。**可以再考慮**（沒做）：首頁 Hero 手機只顯示一欄、X-venom 手機的作品間距（20vh 起）偏長、鏽紅斑點看起來像失焦光暈。
+
+16. **標題斷行、「View series」按鈕、敘述可讀性（2026-09-21，業主看正式站截圖後回報，本機驗證後已 push）**——
+   - **標題**（首頁系列區塊、系列頁左欄）：原本中文緊貼在英文後面，標題一長就在兩種語言之間任意斷行（「在最後的淨土 / 上孤獨」、「X- / venom」）。改成**英文、中文各佔一行**（`.series-title-lang` 改 flex column；`data-lang="zh"` 時中文在上）；中文是次要語言時（0.55em）`white-space: nowrap`，是主要語言時允許換行並 `text-wrap: balance`。**中文標題與英文一樣時不再顯示第二次**（X-venom 的 `titleZh` 也是 "X-venom"，`src/lib/collections/display-title.ts` 的 `zhTitleForDisplay`）。
+   - **「View series」**：從 0.7rem 的底線文字連結改成有外框的真按鈕（228×58、字級 14.4px、hover 反白）。hover 反白用區塊自己的 `--sec-bg`/`--sec-fg`——⚠️ 不能用 `bg-current`，文字色會跟底色一樣而消失。
+   - **敘述可讀性**：SPEC §6.1 的次要語言 0.55em 對標題/短標籤合理，對整段敘述太小（中文約 8px）。新增 `.lang-readable`（`globals.css`）：範圍內次要語言改成 0.85em、透明度 0.75、中文行距 1.95；桌機敘述字級 1.05rem（超過 500 字的長敘述 0.95rem）、行距 1.85；淨土逐行亮起的未讀/已讀透明度 0.22/0.55 → 0.6/0.75（原本未讀句子幾乎看不到）；X-venom 行距逐句縮小的下限 1.05 → 1.45（原本後面幾句擠到讀不了）。**偏離 SPEC §6.1 的 0.55em，僅限敘述與按鈕。**
+   - **長敘述放不下的問題**（淨土：英文 8 行＋中文 7 行，900px 高的螢幕放不下，中文被擠到底被截掉）：標題與資訊固定在左欄上方，只有敘述那一塊內部捲動（底部淡出＋細捲軸）；淨土的敘述會**自動捲到目前亮起的那一行**（像提詞機，用座標差只捲左欄容器、不用 `scrollIntoView` 以免把整頁捲走；尊重 `prefers-reduced-motion`），所以看到的作品跟正在讀的句子永遠對得上。X-venom、Cumedy 的敘述放得下、不需要捲動。
+   - **驗證**（真實 Chrome，1440×900 與 390×844）：首頁標題各佔一行、中文單行、按鈕 228×58；敘述英文 16.8px／中文 14.3px（原本約 8.4px）；淨土捲動 0/50/100% 時亮起的行都在可見範圍內、標題永遠可見（`h1Top` 固定 96）；手機收合 168px／展開 718px、中文 12.9px、無橫向捲動；`tsc`、`eslint src` 通過。過程中開發伺服器一度卡住（60 秒無回應，CPU 幾乎為零，跑了一連串 puppeteer 之後），重啟即恢復。
+
+17. **第一次來的訪客引導（2026-09-22，測試者回報「目前不直覺」，本機驗證後已 push）**——以「完全不了解這個網站設計走向的人」的視角走一遍首屏→系列頁，用真實 Chrome 審計後找到的問題：
+   - **審計結果**：導覽「Bio」是**死連結**（指向 `#bio`，bio 還沒填所以沒有這個區塊，點了沒反應）；首屏 **0 個連結**（照片點不動、沒有任何下一步）；**完全沒有往下捲的提示**；切換鈕只顯示目前狀態（「EN」「DARK」），陌生人不知道按了會變什麼、甚至不知道有中文；首屏只有姓名與一行很淡的職稱。
+   - **首屏**（`src/app/hero.tsx`）：照片整欄可點、進到該系列（`SeriesClickLayer`，蓋在輪播上，`aria-hidden`＋`tabIndex=-1` 因為底部有可聚焦的同目的地連結；文字疊層是 `pointer-events-none`，點擊會穿透）；底部新增引導列——左邊卡片「Now showing 目前展示 → 系列名稱（中英各一行）→ View series 查看系列」（跟著輪播換系列、淡入），右邊「Scroll to explore 往下瀏覽作品」＋一條會動的細線（往下捲 >40px 淡出；手機只留動畫線條）。⚠️ **引導列一開始用了跟姓名一樣的 difference 混合，實測在淺色照片上小字變成低對比灰褐色幾乎讀不出來**，改成跟導覽列同風格的半透明黑底小卡片（`bg-black/55` + `backdrop-blur`）；引導元素的重點是被看見。`getHomeCarouselPairs()` 每一對現在帶 `series`（slug/標題）；退回的單張靜態圖 `series: null`（不顯示卡片、照片不可點）。職稱那行（「這個人做什麼的」）放大加粗（英文 20px、中文 17px，原本約 14px/8px）。
+   - **導覽與切換鈕**：`SiteNav` 標籤跟著語言（Work/作品、Bio/簡介、About/關於、Home/首頁）；「INDEX」（設計圈行話）改成「Home」；系列頁與關於頁新增「Work」（→ `/#series`，看完一個系列想看別的不必回首頁再往下找）；**簡介沒填時不顯示「Bio」**（`LangPageWrapper` 新增 `hasBio` 屬性，首頁傳入）。語言鈕同時顯示「EN / 中」、目前的粗體（SPEC §6.3 原本就是這樣）；主題鈕改成太陽/月亮圖示（顯示「按下去會變成的樣子」，深色模式顯示太陽）＋`title` 提示。
+   - **首頁區塊說明**（`home-sections.tsx`）：系列列表前加標題「Selected work 作品」＋一句「N collections. Choose one to browse every piece. / N 個系列，點進去瀏覽每一件作品。」（原本首屏之後直接是第一個系列，沒有說明這裡是可以點進去的作品列表）；用介面色，跟著淺色/深色切換。
+   - **系列頁**：左欄新增提示「Scroll to browse all N works 向下捲動，瀏覽全部 N 件作品」＋動畫細線，捲進作品區就淡出（`ScrollHint`，`--p`）。
+   - **驗證**（真實 Chrome）：導覽死連結 0 個；ZH 模式導覽「作品 / 關於」；系列頁導覽 Home→/、Work→/#series、About→/about；首屏 3 個照片連結＋底部卡片；往下捲後提示透明度 1→0（首屏與系列頁都是）；**實際點首屏照片會進到 `/work/pure-land`**（一開始我量得太早以為沒作用，開發模式第一次進頁面要編譯幾秒；`elementFromPoint` 在整個首屏都命中照片連結）；桌機 1440／手機 390 兩張卡片不重疊、無橫向捲動；`tsc`、`eslint src` 通過。
+   - **沒做／該考慮**：**還沒有真人測試驗證這些引導是否真的解決「不直覺」**——這是憑審計與慣例判斷；首屏輪播會自動換圖，卡片跟著淡入換系列，可能需要看實際感受；Cumedy 的同意提示層之前沒有任何說明就是一片黑，沒動；首屏姓名字樣本身沒有說明性文字（只有姓名＋職稱）。
 
 **測試方法**：每一項都在本機 `pnpm dev` 截圖/DOM 檢查驗證過（部分項目用臨時腳本寫入測試資料到真實 Turso 資料庫、驗證後清空，比照這份文件一直以來的慣例）；`tsc --noEmit`、`eslint src` 全專案在每一項改動後都跑過確認通過。**全部 10 項都還沒 `git push`**——累積異動約 22 個檔案（含 4 個新檔），等業主全部看過決定後才推上去。
 
@@ -693,23 +720,29 @@ Phase 4 主要頁面（首頁、系列內頁）到這裡都完成了。SPEC.md �
 
 ## 6. 下一步具體指令
 
-**Phase 3、Phase 4、Phase 5（SPEC.md §13 項目 16–29）全部完成，三個系列已於 2026-09-15（第十二批）切成 `public` 並發布**（https://tsengyujui-portfolio.vercel.app ，見 §1、§3.1）。首頁版面最終定案：SPEC §4.2 原文結構，系列列表**不帶** statement 摘要段落（業主決定維持封面圖＋標題＋年份＋類型，完整文字段落只在 `/work/[slug]` 內頁）。
+**（2026-09-22 更新）Phase 1–6 全部 push 上線、Vercel 部署 READY。** 沒有未 commit 的程式碼。接下來的工作都是「業主看過之後的調整」或「等業主提供內容」，不是既定的開發階段。
 
-**Phase 6（UI/UX 精修批次，見 §1.1）10 項改動全部完成，一樣還沒 `git push`**——累積異動約 22 個檔案（含 4 個新檔：`site-nav.tsx`、`lang-switch-button.tsx`、`theme-switch-button.tsx`、`get-adjacent-collections.ts`、`dev-login-action.ts`）。下一個 session 開場時：
+### 6.1 待業主決定／提供（新 session 開場時可以逐項確認進度）
 
-1. 先確認業主是否已經看過本機效果、同意 `git push`——`git status` 目前異動的檔案清單見 §1.1 Phase 6 開頭。DB 端的變更（visibility、發布快照、證書、精選照 `featuredOrder`）已經直接寫進 Turso 生效，不需要 push 才生效；push 是把「程式碼」（含這批 UI/UX 改動、SPEC/HANDOFF 文件更新）同步上 GitHub，觸發 Vercel 重新部署，正式站的首頁/系列頁才會變成新版面
-2. 業主還沒選定 Hero 文字疊層要不要換字體（見 §5 清單），如果業主這次有想法，直接照決定改 `src/components/blocks/render/fonts.ts` 或 Hero 專用的字體載入（目前 Hero 沿用 `langFontClass` 既有的 Inter Tight，還沒有獨立的字體選擇）
-3. 業主提過要簡化後台方便測試，`devLogin()` 已經做好（只在非 production 顯示，見 §1.1 第 10 項）——如果業主之後真的要上線，**不需要額外做任何事把它關掉**，Vercel production 部署本來就會讓這個入口自動失效，不用列進上線檢查清單
+1. **Cumedy Night 的作品精選權**：系列頁長廊現在直接讀 `media` 表，**全部 48 件都會顯示**（33 成品＋4 海報＋11 手繪），不再受區塊編輯器排版影響（§1.1 第 12 項）。業主原本說要自己從 33 張成品照精選 8–12 張——要保留這個權利需要新增「這張圖要不要在長廊顯示」欄位（例如 `media.galleryHidden`）＋後台勾選。**還沒做，先問業主要不要。**
+2. **Cumedy 圖片方向**：業主要自己在後台 `/admin/media` 用「旋轉」按鈕修正（按下去縮圖立刻轉、新網址是 `…~90` 這種版本前綴，§1.1 第 13 項）。之後如果業主說「旋轉後前台沒變」，先確認是不是瀏覽器快取，再看首頁/關於頁有沒有重新驗證。
+3. **bio 簡介還是空的**（待業主提供）：因此首頁的「捲動釘住簡介區塊」不會出現、導覽的「Bio」連結也刻意隱藏（`hasBio`）。填了之後兩者都會自動出現，**但那個釘住區塊從來沒有肉眼看過**。
+4. `year`／`category`／`pieceCount` 三個系列都還是 `null`（系列頁左欄的資訊列因此不顯示）；**所有圖庫圖片的 alt 文字都是空的**（目前退回「系列名 — 類型 序號」）。
+5. **姓名專屬字樣是程式化生成的**（現成字體變形，不是手繪，§1.1 第 6 項附近的 Hero 字樣段落）。如果業主找到設計師，把去背 SVG 覆蓋 `public/brand/name-en.svg`／`name-zh.svg` 並改 `src/lib/brand/name-logotype.ts` 的 `aspect` 即可，接線不用動。
+6. **第一次來訪引導（第 17 項）還沒有真人測試驗證**——是憑審計與慣例判斷的。等測試者回饋；可能要調整：首屏輪播自動換圖會不會太吵、Cumedy 內容提示層（一片黑加警語）要不要加說明。
+7. Preview 專用的獨立 Turso/R2（SPEC §1.2 建議，目前跟 Production 共用，非必要）。
 
-給下一個 session 的建議開場指令：
+### 6.2 給新 session 的工作方式提醒（都是這幾天踩過的坑）
 
-> 三個系列已經公開上線（2026-09-15），SPEC.md §10.4 的待業主確認清單大部分已收斂（見 HANDOFF.md §5 逐項狀態）。還剩：
-> 1. **`EMAIL_SERVER`/`EMAIL_FROM`**——業主提供真實 SMTP 憑證後補進 Vercel Production 環境變數，Magic Link 登入才能在正式站用（見 §1.1 第十批；設定方式已在對話中教過業主，未寫入本文件）。
-> 2. **Preview 環境變數**——Vercel CLI 54.14.0 這個 bug 這次（第十二批）重新嘗試過仍然存在，已備妥所有變數值（含一組新產生的 Preview 專用 `AUTH_SECRET`），需要業主自己到 Vercel dashboard 手動貼上。
-> 3. **Cumedy Night 成品照精選**——業主要自己去後台 Block Editor 從 33 張裡選 8–12 張重新編排，選完記得按「發布」，`publishedSnapshot` 才會更新到前台。
-> 4. 尚未提交 git（見上方本節開頭）——業主同意後記得 push。
+- **不要在業主沒說「commit push」前 push。** 每次 push 都是業主明確同意；commit 前跑 `tsc --noEmit`、`eslint src`、掃機密。
+- **驗證視覺一定要用真實裝置模擬**：瀏覽器面板（`mcp__Claude_Browser__*`）常是隱藏狀態，截圖是空白、`requestAnimationFrame`／CSS 轉場／懶載入／`IntersectionObserver` 都不會跑。可靠的做法是在對話暫存目錄 `npm i puppeteer-core`（不進專案）＋本機 Chrome（`/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`），`page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true})` 截圖再用 Read 看。⚠️ 純 `chrome --headless --window-size=390` **不準**（視窗最小寬約 500px，畫面是裁的）。**驗證圖片要用大視窗＋高解析度**，小視窗會掩蓋「缺 1600/2400 變體」這類問題（§1.1 第 14 項）。
+- **開發伺服器**：`.claude/launch.json` 的 `dev` 在 3050 埠，用 `preview_start {name:"dev"}` 啟動（不要用 Bash 跑）；跑一連串 puppeteer 之後偶爾會卡住（60 秒無回應），`preview_stop` 再 `preview_start` 即可。專案根目錄執行 DB/R2 腳本用 `npx tsx --env-file=.env.local ./_tmp-xxx.mts`（`.mts` 才能用頂層 await，腳本要放專案根目錄才解析得到 `drizzle-orm`，跑完刪掉）。
+- **後台本機登入**：登入頁的「本機測試登入」按鈕（只在非 production 顯示，正式站不存在）。
+- **動真實資料前先看目標**：曾差點拿「沒有指派系列」的圖當測試，結果那是關於頁正在公開展示的證書。測試資料用臨時上傳的圖，測完從後台刪除（刪除會清掉所有旋轉狀態的變體與原檔）。對 R2 做新增類的補檔（如補缺的尺寸）是可以的，但要先說明範圍。
+- **不要複製參考網站的內容**：只借用版面手法（aoiofficial.com 的分析在 §1.1 Phase 6 第 9 項附近），不用對方的文案、圖片、字形。
+- **SPEC 有幾處刻意偏離**（都記在 HANDOFF 對應項目裡）：雙語次要語言在整段敘述/按鈕改 0.85em（SPEC §6.1 是 0.55em）；姓名字樣底稿用襯線體（SPEC §5.2 禁止襯線，但那是圖片）；圖片變體四個尺寸一律生成（SPEC §1.3 原本說小圖跳過，已改）。
 
-**沒有實測、需要業主/後續 session 補驗的一點**：Hero 背景輪播在 `prefers-reduced-motion` 開啟時是否真的停用自動播放（見 §1.1 第六批最後一點）——這個測試環境沒有 DevTools Rendering 面板的存取權限，只確認過程式碼邏輯（`matchMedia` 呼叫本身正常執行）沒有 bug，沒有肉眼切換系統偏好驗證過視覺效果。
+**沒有實測的一點**：`prefers-reduced-motion` 開啟時各動效（首屏輪播、系列頁三種進場動畫、抖動、導覽收起）是否真的停用——只確認過 CSS／程式碼邏輯，沒有肉眼切換系統偏好驗證過。
 
 ---
 

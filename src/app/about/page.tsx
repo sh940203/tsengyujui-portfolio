@@ -81,12 +81,17 @@ export default async function AboutPage() {
   // 雖然目前沒有實測出這些額外資料會外洩（不是 `cache()` 共用查詢），
   // 但公開頁面沒理由查超出畫面會用到的資料列，順手一起收斂。
   const mediaMap = new Map<string, string>();
+  // 寬 ÷ 高（已是旋轉後的尺寸）：證書是文件，要用真實比例完整顯示，不能裁切
+  const aspectMap = new Map<string, number>();
   if (imageIds.length > 0) {
     const mediaRows = await db
-      .select({ id: media.id, r2Key: media.r2Key })
+      .select({ id: media.id, r2Key: media.r2Key, width: media.width, height: media.height })
       .from(media)
       .where(inArray(media.id, imageIds));
-    for (const row of mediaRows) mediaMap.set(row.id, row.r2Key);
+    for (const row of mediaRows) {
+      mediaMap.set(row.id, row.r2Key);
+      if (row.width && row.height) aspectMap.set(row.id, row.width / row.height);
+    }
   }
 
   const personImage = await resolveOgImageUrl(profileRow?.defaultOgImageId ?? profileRow?.aboutImageId);
@@ -129,6 +134,7 @@ export default async function AboutPage() {
             resultZh: a.resultZh,
             certificateR2Key:
               a.showCertificate && a.imageId ? (mediaMap.get(a.imageId) ?? null) : null,
+            certificateAspect: a.imageId ? (aspectMap.get(a.imageId) ?? null) : null,
           }))}
         />
         <ContactSection

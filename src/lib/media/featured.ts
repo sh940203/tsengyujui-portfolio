@@ -38,9 +38,17 @@ export interface CarouselImage {
   altEn: string | null;
 }
 
+/** 首屏照片所屬系列——首屏要標出「目前展示的是哪個系列」並讓照片可以點進去。 */
+export interface CarouselSeries {
+  slug: string;
+  titleEn: string;
+  titleZh: string | null;
+}
+
 export interface CarouselPair {
   left: CarouselImage;
   right: CarouselImage;
+  series: CarouselSeries;
 }
 
 const FALLBACK_COUNT = 4;
@@ -85,7 +93,12 @@ export async function getSeriesShowcase(collectionId: string, coverImageId: stri
 
 export async function getHomeCarouselPairs(): Promise<CarouselPair[]> {
   const publicCollections = await db
-    .select({ id: collections.id })
+    .select({
+      id: collections.id,
+      slug: collections.slug,
+      titleEn: collections.titleEn,
+      titleZh: collections.titleZh,
+    })
     .from(collections)
     .where(eq(collections.visibility, "public"))
     .orderBy(asc(collections.sortOrder));
@@ -97,7 +110,11 @@ export async function getHomeCarouselPairs(): Promise<CarouselPair[]> {
     // 依序兩兩一組：0&1 是第一對、2&3 是第二對……落單的最後一張（奇數張
     // 時）直接丟棄，不跟下一個系列的圖湊對——「同系列配對」是硬規則。
     for (let i = 0; i + 1 < pool.length; i += 2) {
-      pairs.push({ left: pool[i], right: pool[i + 1] });
+      pairs.push({
+        left: pool[i],
+        right: pool[i + 1],
+        series: { slug: col.slug, titleEn: col.titleEn, titleZh: col.titleZh },
+      });
     }
   }
 

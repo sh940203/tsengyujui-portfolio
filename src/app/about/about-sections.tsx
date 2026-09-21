@@ -67,6 +67,8 @@ export interface AwardListItem {
   resultEn: string | null;
   resultZh: string | null;
   certificateR2Key: string | null;
+  /** 證書的寬 ÷ 高；沒有就退回 3:4（直式證書的常見比例）。 */
+  certificateAspect: number | null;
 }
 
 /**
@@ -113,13 +115,18 @@ export function AwardsList({ items }: { items: AwardListItem[] }) {
               <AwardResult resultEn={item.resultEn} resultZh={item.resultZh} />
             </div>
             {item.certificateR2Key && (
-              <div className="relative mt-2 aspect-[4/3] w-full max-w-xs overflow-hidden bg-white/5">
+              // 證書是文件：用它真實的比例完整顯示（原本固定 4:3 加 `cover`，直式證書
+              // 上下的字與印章被裁掉，手機截圖實測抓到）。
+              <div
+                className="relative mt-2 w-full max-w-xs overflow-hidden bg-white/5"
+                style={{ aspectRatio: item.certificateAspect ?? 3 / 4 }}
+              >
                 <Image
                   src={item.certificateR2Key}
                   alt={item.titleEn ?? item.titleZh ?? ""}
                   fill
                   sizes="320px"
-                  style={{ objectFit: "cover" }}
+                  style={{ objectFit: "contain" }}
                 />
               </div>
             )}

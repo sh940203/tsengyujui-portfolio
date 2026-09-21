@@ -1,7 +1,10 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { Lang } from "@/components/lang";
+import { zhTitleForDisplay } from "@/lib/collections/display-title";
 import { heroEnFont, heroZhFont } from "./hero-fonts";
 import { NAME_LOGOTYPE, type Logotype } from "@/lib/brand/name-logotype";
 
@@ -34,9 +37,17 @@ export interface HeroImage {
   altEn: string | null;
 }
 
+/** 這一對照片所屬的系列——首屏標出「目前展示」並讓照片可以點進去（沒有系列的退回圖為 null）。 */
+export interface HeroSeries {
+  slug: string;
+  titleEn: string;
+  titleZh: string | null;
+}
+
 export interface HeroPair {
   left: HeroImage;
   right: HeroImage;
+  series: HeroSeries | null;
 }
 
 export interface HeroData {
@@ -86,6 +97,24 @@ function HeroCarouselColumn({
         );
       })}
     </div>
+  );
+}
+
+/**
+ * 蓋在輪播照片上的整欄連結：點照片就進到那個系列。對輔助技術隱藏
+ * （`aria-hidden` + `tabIndex=-1`）——同一個目的地底部引導列已經有可聚焦的
+ * 「查看系列」連結，避免鍵盤/螢幕閱讀器重複讀到。文字疊層是 `pointer-events-none`，
+ * 點擊會穿透到這一層。沒有系列（退回的單張靜態圖）就不渲染。
+ */
+function SeriesClickLayer({ series }: { series: HeroSeries | null }) {
+  if (!series) return null;
+  return (
+    <Link
+      href={`/work/${series.slug}`}
+      tabIndex={-1}
+      aria-hidden="true"
+      className="absolute inset-0 z-[5] cursor-pointer transition-colors duration-300 hover:bg-black/10"
+    />
   );
 }
 
@@ -143,6 +172,14 @@ export function Hero({ nameEn, nameZh, roleEn, roleZh, locationEn, locationZh, p
   const [index, setIndex] = useState(0);
   const [prevIndex, setPrevIndex] = useState<number | null>(null);
   const indexRef = useRef(0);
+  // 往下捲一點之後，「往下瀏覽」的提示就完成任務了，淡出
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 40);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   useEffect(() => {
     if (pairs.length <= 1) return;
@@ -162,11 +199,13 @@ export function Hero({ nameEn, nameZh, roleEn, roleZh, locationEn, locationZh, p
   const hasSupportingInfo = roleEn || roleZh || locationEn || locationZh;
   const leftImages = pairs.map((p) => p.left);
   const rightImages = pairs.map((p) => p.right);
+  const currentSeries = pairs[index]?.series ?? null;
 
   return (
     <section className={`relative flex w-full flex-col lg:h-screen lg:flex-row ${heroEnFont.variable} ${heroZhFont.variable}`}>
       <div className="relative h-[45vh] w-full lg:h-screen lg:w-1/2">
         <HeroCarouselColumn images={leftImages} index={index} prevIndex={prevIndex} />
+        <SeriesClickLayer series={currentSeries} />
         {/* 文字疊層：絕對定位貼在左欄上方，靠左對齊。`mix-blend-mode:
             difference` 讓白字跟底下的照片反相混合——亮處變黑字、暗處變白字，
             在混亂背景上也讀得到（原本的 `overlay` 在白色/深色區域都幾乎
@@ -197,8 +236,10 @@ export function Hero({ nameEn, nameZh, roleEn, roleZh, locationEn, locationZh, p
           {/* 第三段：輔助資訊淡入 */}
           {hasSupportingInfo && (
             <div
-              className="motion-safe:opacity-0 motion-safe:animate-[hero-fade-in_0.6s_ease-out_1.6s_forwards]"
-              style={{ fontSize: "clamp(0.8rem, 1.4vw, 1.1rem)", letterSpacing: "0.08em", color: "white" }}
+              className="lang-readable motion-safe:opacity-0 motion-safe:animate-[hero-fade-in_0.6s_ease-out_1.6s_forwards]"
+              // 職稱是第一次來的人判斷「這個人是做什麼的」的關鍵句，原本是反相混合下的細小
+              // 淺字（淺色照片上幾乎讀不出來）；放大、加粗一點，中文次要語言用 0.85em。
+              style={{ fontSize: "clamp(0.95rem, 1.6vw, 1.25rem)", letterSpacing: "0.08em", color: "white", fontWeight: 500 }}
             >
               <HeroLang en={roleEn ?? ""} zh={roleZh ?? ""} />
               {(roleEn || roleZh) && (locationEn || locationZh) && <span className="mx-2 opacity-50">/</span>}
@@ -209,6 +250,58 @@ export function Hero({ nameEn, nameZh, roleEn, roleZh, locationEn, locationZh, p
       </div>
       <div className="relative h-[45vh] w-full lg:h-screen lg:w-1/2">
         <HeroCarouselColumn images={rightImages} index={index} prevIndex={prevIndex} />
+        <SeriesClickLayer series={currentSeries} />
+      </div>
+
+      {/* 首屏底部的引導列（第一次來的人不知道照片能點、也不知道下一步該做什麼）：
+          左邊標出「目前展示的是哪個系列」＋明確的「查看系列」，右邊是往下瀏覽的提示。
+          用跟導覽列一樣的半透明黑底小卡片，不用姓名那種 difference 混合——混合在淺色
+          照片上小字會變成低對比的灰褐色（實測幾乎讀不出來），而引導元素的重點就是
+          要被看見。 */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-end justify-between gap-3 px-4 pb-4 text-white lg:px-16 lg:pb-10">
+        {currentSeries ? (
+          <Link
+            key={`${currentSeries.slug}-${index}`}
+            href={`/work/${currentSeries.slug}`}
+            className="pointer-events-auto flex min-w-0 max-w-[75%] flex-col gap-1.5 rounded border border-white/30 bg-black/55 px-4 py-3 backdrop-blur-sm transition-colors hover:bg-black/70 motion-safe:animate-[hero-fade-in_0.6s_ease-out_both]"
+          >
+            <span className="opacity-80" style={{ fontSize: "0.7rem", letterSpacing: "0.18em" }}>
+              <Lang en="Now showing" zh="目前展示" role="ui" />
+            </span>
+            <span style={{ fontSize: "clamp(1.05rem, 1.8vw, 1.5rem)", lineHeight: 1.15, letterSpacing: "-0.01em" }}>
+              <Lang
+                en={currentSeries.titleEn}
+                zh={zhTitleForDisplay(currentSeries.titleEn, currentSeries.titleZh)}
+                role="display"
+                className="series-title-lang"
+              />
+            </span>
+            <span
+              className="inline-flex min-h-8 items-center underline underline-offset-[6px]"
+              style={{ fontSize: "0.8rem", letterSpacing: "0.16em" }}
+            >
+              <Lang en="View series" zh="查看系列" role="ui" />
+            </span>
+          </Link>
+        ) : (
+          <span />
+        )}
+        <a
+          href="#series"
+          aria-label="Scroll to explore / 往下瀏覽作品"
+          className={`pointer-events-auto flex min-h-11 shrink-0 items-center gap-3 rounded border border-white/30 bg-black/55 px-3.5 backdrop-blur-sm transition-opacity duration-500 lg:px-4 ${
+            scrolled ? "pointer-events-none opacity-0" : "opacity-100"
+          }`}
+          style={{ fontSize: "0.7rem", letterSpacing: "0.18em" }}
+        >
+          {/* 手機空間不夠，只留動畫線條；桌機才帶文字 */}
+          <span className="hidden lg:inline">
+            <Lang en="Scroll to explore" zh="往下瀏覽作品" role="ui" />
+          </span>
+          <span className="relative block h-7 w-px overflow-hidden bg-white/30" aria-hidden="true">
+            <span className="absolute inset-x-0 top-0 block h-1/2 bg-white motion-safe:animate-[scroll-cue_1.8s_ease-in-out_infinite]" />
+          </span>
+        </a>
       </div>
     </section>
   );

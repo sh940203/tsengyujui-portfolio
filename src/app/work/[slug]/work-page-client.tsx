@@ -55,14 +55,14 @@ function ConsentGate({
             sessionStorage.setItem(consentStorageKey(slug), "granted");
             onConfirm();
           }}
-          className="rounded border border-white/40 px-5 py-2 hover:bg-white/10"
+          className="min-h-11 rounded border border-white/40 px-6 py-2 hover:bg-white/10"
         >
           進入 / ENTER
         </button>
         <button
           type="button"
           onClick={() => router.push("/")}
-          className="rounded border border-white/10 px-5 py-2 opacity-70 hover:opacity-100"
+          className="min-h-11 rounded border border-white/20 px-6 py-2 opacity-80 hover:opacity-100"
         >
           返回 / BACK
         </button>
@@ -133,7 +133,7 @@ export function WorkPageClient({
 
   return (
     <>
-      <SiteNav variant="work" />
+      <SiteNav variant="work" lang={lang} />
       <LangSwitchButton lang={lang} onToggle={() => setLang((l) => (l === "en" ? "zh" : "en"))} />
       <SeriesGallery
         style={galleryStyle}

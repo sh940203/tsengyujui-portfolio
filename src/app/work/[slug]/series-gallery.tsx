@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import type { AdjacentCollectionLink, RenderTheme } from "@/components/blocks/render/types";
 import { Lang, langFontClass, langFontVariables } from "@/components/lang";
+import { zhTitleForDisplay } from "@/lib/collections/display-title";
 import { KIND_LABEL, type GalleryStyle } from "@/lib/collections/gallery-style";
 import type { GalleryItem } from "@/lib/collections/get-series-gallery";
 import { THEME_COLORS } from "@/lib/collections/theme-colors";
@@ -224,11 +225,13 @@ function StillGallery({ items, altFor }: GalleryProps) {
         <Reveal
           key={item.id}
           index={index}
-          className="gallery-still flex min-h-[100svh] items-center justify-center px-[8%] py-[12vh]"
+          className="gallery-still flex items-center justify-center px-[6%] py-[9svh] lg:min-h-[100svh] lg:px-[8%] lg:py-[12vh]"
         >
+          {/* 桌機一屏一件（min-h 100svh、寬 80%）；手機不強制滿屏——圖只有約 470px 高，
+              強制滿屏會在每件之間留 450px 的空白，捲很久才看到下一件（手機截圖實測） */}
           <div
-            className="relative"
-            style={{ width: `min(80%, calc(76vh * ${item.aspect}))`, aspectRatio: item.aspect }}
+            className="relative w-[min(88%,calc(76svh*var(--ar)))] lg:w-[min(80%,calc(76vh*var(--ar)))]"
+            style={{ "--ar": item.aspect, aspectRatio: item.aspect } as CSSProperties}
           >
             <GalleryImage
               item={item}
@@ -420,21 +423,29 @@ function StatementLines({
         const t = n > 1 ? i / (n - 1) : 0;
         let lineStyle: CSSProperties = { marginBottom: "0.5em" };
         if (style === "still") {
+          // 「隨捲動一行一行亮起」只在桌機有意義（左欄釘住、邊捲邊看得到）；手機上
+          // 文字會捲走，調暗只會讓敘述變成灰色難讀（手機截圖實測），所以只有 lg 以上
+          // 才套用 `--lo`。
           lineStyle = {
             marginBottom: "0.6em",
-            opacity: i === activeLine ? 1 : i < activeLine ? 0.55 : 0.22,
+            "--lo": i === activeLine ? 1 : i < activeLine ? 0.75 : 0.6,
             transition: "opacity 0.9s ease",
-          };
+          } as CSSProperties;
         } else if (style === "venom") {
           lineStyle = {
-            lineHeight: lerp(1.95, 1.05, t),
-            marginBottom: `${lerp(0.9, 0.15, t).toFixed(2)}em`,
+            lineHeight: lerp(1.9, 1.45, t),
+            marginBottom: `${lerp(0.9, 0.3, t).toFixed(2)}em`,
             letterSpacing: `${(-0.012 * i).toFixed(3)}em`,
             textShadow: "calc(var(--p, 0) * 2px) 0 rgba(176, 58, 32, 0.85)",
           };
         }
         return (
-          <span key={i} className="block" style={lineStyle}>
+          <span
+            key={i}
+            data-active-line={style === "still" && i === activeLine ? "true" : undefined}
+            className={style === "still" ? "block lg:opacity-[var(--lo)]" : "block"}
+            style={lineStyle}
+          >
             {line}
           </span>
         );
@@ -443,8 +454,30 @@ function StatementLines({
   );
 }
 
+/**
+ * 第一次來的人不知道右邊是「一路往下捲就能看完全部作品」——加一句提示＋一條會動的
+ * 細線，捲進作品區（`--p` > 約 0.02）就淡出。桌機在左欄計數上方，手機在敘述下方。
+ */
+function ScrollHint({ count }: { count: number }) {
+  return (
+    <div
+      aria-hidden="true"
+      className="mt-6 flex shrink-0 items-center gap-3"
+      style={{ ...META_STYLE, opacity: "max(0, calc(1 - var(--p, 0) * 50))" }}
+    >
+      <span className="relative block h-8 w-px overflow-hidden bg-current/25">
+        <span className="absolute inset-x-0 top-0 block h-1/2 bg-current motion-safe:animate-[scroll-cue_1.8s_ease-in-out_infinite]" />
+      </span>
+      <span>
+        <Lang en={`Scroll to browse all ${count} works`} zh={`向下捲動，瀏覽全部 ${count} 件作品`} role="ui" />
+      </span>
+    </div>
+  );
+}
+
 function InfoPanel({
   style,
+  lang,
   titleEn,
   titleZh,
   meta,
@@ -454,6 +487,7 @@ function InfoPanel({
   items,
 }: {
   style: GalleryStyle;
+  lang: "en" | "zh";
   titleEn: string;
   titleZh: string | null;
   meta: string;
@@ -463,55 +497,82 @@ function InfoPanel({
   items: GalleryItem[];
 }) {
   const [expanded, setExpanded] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const accent = ACCENT[style];
+  // 敘述超過 500 字（例如淨土：英文 523＋中文 158）字級略縮，桌機才放得下更多
+  const longStatement = (statementEn?.length ?? 0) + (statementZh?.length ?? 0) > 500;
+
+  // 淨土的敘述會隨捲動一行一行亮起；敘述長到左欄放不下時，讓左欄自己捲到目前亮起
+  // 的那一行（像提詞機），使用者看到的作品跟正在讀的句子永遠對得上。只捲左欄這個
+  // 容器（用座標差算，不用 scrollIntoView——那會連頁面本身一起捲走）。
+  useEffect(() => {
+    if (style !== "still") return;
+    const box = scrollRef.current;
+    const el = box?.querySelector<HTMLElement>(`.${lang === "zh" ? "lang-zh" : "lang-en"} [data-active-line="true"]`);
+    if (!box || !el) return;
+    const b = box.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    const delta = r.top - b.top - b.height * 0.3;
+    if (Math.abs(delta) > 8) {
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      box.scrollBy({ top: delta, behavior: reduce ? "auto" : "smooth" });
+    }
+  }, [active, style, lang]);
   const kind = items[active] ? KIND_LABEL[items[active].kind] : null;
   const hasStatement = !!(statementEn || statementZh);
 
   return (
     <aside className="relative px-6 pb-10 pt-24 lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-[36%] lg:shrink-0 lg:flex-col lg:self-start lg:px-10 lg:pb-8">
-      <div className="min-h-0 flex-1 lg:overflow-y-auto lg:pr-2 lg:[scrollbar-width:none]">
+      {/* 標題與資訊固定在上方；只有敘述那一塊在桌機可以內部捲動（敘述長到放不下時，
+          標題不會跟著捲出去，使用者隨時知道現在看的是哪個系列） */}
+      <div className="shrink-0">
         <h1 className="leading-[1.03]" style={{ fontSize: "clamp(2.25rem, 3.8vw, 4rem)", letterSpacing: "-0.01em" }}>
-          <Lang en={titleEn} zh={titleZh ?? ""} role="display" className="series-title-lang" />
+          <Lang en={titleEn} zh={zhTitleForDisplay(titleEn, titleZh)} role="display" className="series-title-lang" />
         </h1>
         {meta && (
           <p className={`mt-4 opacity-70 ${langFontClass("en", "ui")}`} style={META_STYLE}>
             {meta}
           </p>
         )}
-        {hasStatement && (
-          <div className="mt-8">
-            {/* 手機上收合成約 6 行、有「閱讀概念」展開；桌機（lg）永遠完整顯示 */}
-            <div
-              className={`statement-stack text-[0.9rem] leading-[1.75] lg:max-h-none lg:overflow-visible lg:text-[0.95rem] ${
-                expanded ? "" : "max-h-[9.5rem] overflow-hidden [mask-image:linear-gradient(#000_60%,transparent)] lg:[mask-image:none]"
-              }`}
-            >
-              <StatementLines
-                text={statementEn}
-                langClass="lang-en"
-                style={style}
-                activeIndex={active}
-                count={items.length}
-              />
-              <StatementLines
-                text={statementZh}
-                langClass="lang-zh"
-                style={style}
-                activeIndex={active}
-                count={items.length}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => setExpanded((v) => !v)}
-              className="mt-3 min-h-11 underline underline-offset-[6px] opacity-80 lg:hidden"
-              style={META_STYLE}
-            >
-              {expanded ? <Lang en="Show less" zh="收合" role="ui" /> : <Lang en="Read statement" zh="閱讀概念" role="ui" />}
-            </button>
-          </div>
-        )}
       </div>
+      {hasStatement && (
+        <div
+          ref={scrollRef}
+          className="mt-8 min-h-0 flex-1 lg:overflow-y-auto lg:pr-3 lg:pb-10 lg:[mask-image:linear-gradient(#000_calc(100%-2.5rem),transparent)] lg:[scrollbar-width:thin]"
+        >
+          {/* 手機上收合成約 6 行、有「閱讀概念」展開；桌機（lg）永遠完整顯示 */}
+          <div
+            className={`statement-stack lang-readable text-[0.95rem] leading-[1.85] lg:max-h-none lg:overflow-visible ${longStatement ? "lg:text-[0.95rem]" : "lg:text-[1.05rem]"} ${
+              expanded ? "" : "max-h-[10.5rem] overflow-hidden [mask-image:linear-gradient(#000_60%,transparent)] lg:[mask-image:none]"
+            }`}
+          >
+            <StatementLines
+              text={statementEn}
+              langClass="lang-en"
+              style={style}
+              activeIndex={active}
+              count={items.length}
+            />
+            <StatementLines
+              text={statementZh}
+              langClass="lang-zh"
+              style={style}
+              activeIndex={active}
+              count={items.length}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="mt-3 min-h-11 underline underline-offset-[6px] opacity-80 lg:hidden"
+            style={META_STYLE}
+          >
+            {expanded ? <Lang en="Show less" zh="收合" role="ui" /> : <Lang en="Read statement" zh="閱讀概念" role="ui" />}
+          </button>
+        </div>
+      )}
+
+      {items.length > 0 && <ScrollHint count={items.length} />}
 
       {items.length > 0 && (
         <div className="mt-6 hidden lg:block">
@@ -615,6 +676,7 @@ export function SeriesGallery({
     >
       <InfoPanel
         style={style}
+        lang={lang}
         titleEn={titleEn}
         titleZh={titleZh}
         meta={meta}
@@ -623,6 +685,29 @@ export function SeriesGallery({
         active={active}
         items={items}
       />
+      {items.length > 0 && (
+        // 手機沒有左欄（不釘住），捲動時看不到目前第幾件——補一個固定的小計數＋進度線。
+        // 一開始（p=0）透明，捲進作品區才淡入。
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed right-4 bottom-4 z-40 flex min-w-24 flex-col gap-2 rounded border border-current/20 px-3 py-2 backdrop-blur-sm lg:hidden"
+          style={{
+            ...META_STYLE,
+            backgroundColor: `color-mix(in srgb, ${colors.bg} 78%, transparent)`,
+            opacity: "min(1, calc(var(--p, 0) * 40))",
+          }}
+        >
+          <span style={{ color: ACCENT[style] }}>
+            {pad2(active + 1)} / {pad2(items.length)}
+          </span>
+          <div className="h-px w-full bg-current/20">
+            <div
+              className="h-full origin-left"
+              style={{ transform: "scaleX(var(--p, 0))", backgroundColor: ACCENT[style] }}
+            />
+          </div>
+        </div>
+      )}
       <div ref={galleryRef} className="min-w-0 lg:flex-1">
         {items.length === 0 ? (
           <p className="px-6 py-24 opacity-60 lg:px-10">

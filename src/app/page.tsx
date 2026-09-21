@@ -115,6 +115,7 @@ export default async function HomePage() {
             {
               left: { id: profileRow.heroImageId, r2Key: mediaMap.get(profileRow.heroImageId)!, altEn: null },
               right: { id: profileRow.heroImageId, r2Key: mediaMap.get(profileRow.heroImageId)!, altEn: null },
+              series: null,
             },
           ]
         : [];
@@ -136,7 +137,7 @@ export default async function HomePage() {
   });
 
   return (
-    <LangPageWrapper navVariant="home">
+    <LangPageWrapper navVariant="home" hasBio={!!(profileRow?.bioEn || profileRow?.bioZh)}>
       <script type="application/ld+json" {...jsonLdScriptProps(jsonLd)} />
       {/* 無障礙排查批次抓到（Lighthouse landmark-one-main）：全站沒有
           <main>，補在這裡——頁尾維持獨立的 <footer>，不包進來。 */}

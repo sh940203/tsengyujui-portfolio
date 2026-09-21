@@ -1,7 +1,9 @@
 import Image from "next/image";
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import { Lang, langFontClass } from "@/components/lang";
 import type { RenderTheme } from "@/components/blocks/render/types";
+import { zhTitleForDisplay } from "@/lib/collections/display-title";
 import { THEME_COLORS } from "@/lib/collections/theme-colors";
 
 /**
@@ -55,7 +57,7 @@ function SeriesSection({ item, index, flip }: { item: SeriesShowcaseItem; index:
   return (
     <section
       data-theme={item.theme}
-      style={{ backgroundColor: colors.bg, color: colors.fg }}
+      style={{ backgroundColor: colors.bg, color: colors.fg, "--sec-bg": colors.bg, "--sec-fg": colors.fg } as CSSProperties}
       className="px-6 py-[clamp(5rem,12vw,11rem)] lg:px-16"
     >
       <div className="mx-auto grid max-w-[90rem] gap-x-[clamp(1.5rem,4vw,4rem)] gap-y-10 lg:grid-cols-12">
@@ -68,17 +70,20 @@ function SeriesSection({ item, index, flip }: { item: SeriesShowcaseItem; index:
             {String(index + 1).padStart(2, "0")}
           </span>
           <h2 className="leading-[1.05]" style={{ fontSize: "clamp(2.25rem, 5vw, 4.5rem)", letterSpacing: "-0.01em" }}>
-            <Lang en={item.titleEn} zh={item.titleZh ?? ""} role="display" className="series-title-lang" />
+            <Lang en={item.titleEn} zh={zhTitleForDisplay(item.titleEn, item.titleZh)} role="display" className="series-title-lang" />
           </h2>
           {meta && (
             <span className={`opacity-70 ${langFontClass("en", "ui")}`} style={META_STYLE}>
               {meta}
             </span>
           )}
+          {/* 真正的按鈕：有外框、夠大（原本是 0.7rem 的底線文字連結，使用者反映太小）；
+              hover 反白用區塊自己的底色/文字色（`--sec-bg`/`--sec-fg`），不能用 `bg-current`
+              （文字色會跟底色一樣而消失）。 */}
           <Link
             href={`/work/${item.slug}`}
-            className="mt-4 w-fit underline underline-offset-[6px] opacity-90 hover:opacity-100"
-            style={META_STYLE}
+            className="lang-readable mt-4 inline-flex min-h-14 w-fit items-center border border-current px-8 py-4 transition-colors duration-200 hover:bg-[var(--sec-fg)] hover:text-[var(--sec-bg)] focus-visible:bg-[var(--sec-fg)] focus-visible:text-[var(--sec-bg)]"
+            style={{ fontSize: "0.9rem", letterSpacing: "0.16em" }}
           >
             <Lang en="View series" zh="查看系列" role="ui" />
           </Link>
@@ -134,6 +139,23 @@ export function SeriesSections({ items }: { items: SeriesShowcaseItem[] }) {
   if (items.length === 0) return null;
   return (
     <div id="series">
+      {/* 給第一次來的人一句話：這一段是什麼、下一步做什麼（原本首屏之後直接是第一個系列，
+          沒有任何說明這裡是「作品列表、可以點進去」）。用介面色（跟著淺色/深色切換）。 */}
+      <div className="bg-[var(--ui-bg)] px-6 pb-12 pt-[clamp(4rem,8vw,7rem)] text-[var(--ui-fg)] lg:px-16">
+        <div className="mx-auto max-w-[90rem]">
+          <h2 style={{ fontSize: "clamp(1.5rem, 3vw, 2.25rem)", letterSpacing: "-0.01em" }}>
+            <Lang en="Selected work" zh="作品" role="display" className="series-title-lang" />
+          </h2>
+          <p className="lang-readable mt-4 max-w-xl" style={{ fontSize: "0.95rem", lineHeight: 1.7 }}>
+            <Lang
+              en={`${items.length} collections. Choose one to browse every piece.`}
+              zh={`${items.length} 個系列，點進去瀏覽每一件作品。`}
+              role="ui"
+              className="series-title-lang"
+            />
+          </p>
+        </div>
+      </div>
       {items.map((item, i) => (
         <SeriesSection key={item.slug} item={item} index={i} flip={i % 2 === 1} />
       ))}

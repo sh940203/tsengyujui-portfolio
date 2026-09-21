@@ -38,15 +38,28 @@ export function LangSwitchButton({
   return (
     <button
       type="button"
+      data-chrome={!compact && !unpositioned ? "" : undefined}
       onClick={onToggle}
       aria-label={lang === "en" ? "Switch to Chinese / 切換為中文" : "Switch to English / 切換為英文"}
       className={
         compact
           ? "fixed top-2 right-2 z-50 rounded border border-white/30 bg-black/50 px-2 py-1 text-[10px] text-white"
-          : `${unpositioned ? "" : "fixed top-4 right-4 z-50 "}${SWITCH_BUTTON_BASE_CLASS}`
+          : `${unpositioned ? "" : "fixed top-4 right-4 z-50 "}${SWITCH_BUTTON_BASE_CLASS} gap-1 px-2.5`
       }
     >
-      {lang.toUpperCase()}
+      {compact ? (
+        lang.toUpperCase()
+      ) : (
+        // 兩種語言都顯示、目前的那個粗體（SPEC §6.3 原本就是「EN / ZH」）：原本只顯示
+        // 目前語言（「EN」），第一次來的人不知道按了會變什麼、甚至不知道有中文。
+        <>
+          <span className={lang === "en" ? "font-semibold" : "opacity-50"}>EN</span>
+          <span aria-hidden="true" className="opacity-30">
+            /
+          </span>
+          <span className={lang === "zh" ? "font-semibold" : "opacity-50"}>中</span>
+        </>
+      )}
     </button>
   );
 }
