@@ -1,8 +1,8 @@
 /**
- * 首頁 Hero 姓名的「專屬字樣」（手繪/自製的姓名 logotype），業主選擇的方向：
+ * 姓名的「專屬字樣」（自製的姓名 logotype，首頁 Hero 與頁尾共用），業主選擇的方向：
  * 姓名只有 `曾昱睿` / `Tseng Yu Jui`，不需要一整套字體，做一張字樣圖即可。
  *
- * 設了就顯示圖、沒設（`null`）就退回 `hero-fonts.ts` 的文字——中英各自獨立，
+ * 設了就顯示圖、沒設（`null`）就退回文字（Hero 用 `src/app/hero-fonts.ts`，頁尾用一般粗體字）——中英各自獨立，
  * 可以只做中文、只做英文、或兩個都做。
  *
  * 放檔案的位置與規格：
@@ -24,7 +24,7 @@ export interface Logotype {
   heightEm: number;
 }
 
-export const HERO_NAME_LOGOTYPE: { en: Logotype | null; zh: Logotype | null } = {
+export const NAME_LOGOTYPE: { en: Logotype | null; zh: Logotype | null } = {
   en: { src: "/brand/name-en.svg", aspect: 6.2, heightEm: 1.23 },
   zh: { src: "/brand/name-zh.svg", aspect: 2.691, heightEm: 2 },
 };

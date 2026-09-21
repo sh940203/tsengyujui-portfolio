@@ -62,6 +62,27 @@ async function getCollectionCarouselPool(collectionId: string): Promise<Carousel
     .limit(FALLBACK_COUNT);
 }
 
+/**
+ * 首頁系列區塊的拼貼用圖（最多 3 張）：第一張是系列封面（`coverImageId`，
+ * 沒設封面就用精選池第一張），其餘從同一個精選池補滿、排除封面本身——
+ * 沿用 `getCollectionCarouselPool` 的精選/fallback 邏輯，草稿系列的圖不會
+ * 進來（呼叫端只傳 public 系列的 id）。
+ */
+export async function getSeriesShowcase(collectionId: string, coverImageId: string | null): Promise<CarouselImage[]> {
+  const pool = await getCollectionCarouselPool(collectionId);
+  const cover = coverImageId
+    ? ((
+        await db
+          .select({ id: media.id, r2Key: media.r2Key, altEn: media.altEn })
+          .from(media)
+          .where(and(eq(media.id, coverImageId), eq(media.collectionId, collectionId)))
+          .limit(1)
+      )[0] ?? null)
+    : null;
+  const rest = pool.filter((img) => img.id !== cover?.id);
+  return (cover ? [cover, ...rest] : rest).slice(0, 3);
+}
+
 export async function getHomeCarouselPairs(): Promise<CarouselPair[]> {
   const publicCollections = await db
     .select({ id: collections.id })

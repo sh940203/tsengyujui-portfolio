@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { heroEnFont, heroZhFont } from "./hero-fonts";
-import { HERO_NAME_LOGOTYPE, type Logotype } from "./hero-logotype";
+import { NAME_LOGOTYPE, type Logotype } from "@/lib/brand/name-logotype";
 
 /**
  * 首頁 Hero——2026-09-18 再次改版：業主指定參考 aoiofficial.com 首頁，
@@ -100,7 +100,7 @@ function HeroLang({ en, zh }: { en: string; zh: string }) {
 }
 
 /**
- * 姓名單行。有專屬字樣（`hero-logotype.ts`）就顯示字樣圖，同時把真實姓名文字
+ * 姓名單行。有專屬字樣（`src/lib/brand/name-logotype.ts`）就顯示字樣圖，同時把真實姓名文字
  * 以視覺隱藏（`sr-only`）的形式留在 DOM 裡——搜尋引擎、螢幕閱讀器、`<h1>` 的
  * 語意都靠這段文字，圖片只是視覺（`alt=""` + `aria-hidden`）。沒有字樣就直接
  * 顯示文字。
@@ -187,10 +187,10 @@ export function Hero({ nameEn, nameZh, roleEn, roleZh, locationEn, locationZh, p
             style={{ fontSize: "clamp(3rem, 5.2vw, 7rem)", letterSpacing: "-0.02em", color: "white" }}
           >
             <span className="-my-[0.12em] block w-full overflow-hidden py-[0.12em] motion-safe:opacity-0 motion-safe:animate-[hero-slide-up_0.6s_ease-out_0.8s_forwards]">
-              <HeroNameLine lang="en" text={nameEn} logotype={HERO_NAME_LOGOTYPE.en} />
+              <HeroNameLine lang="en" text={nameEn} logotype={NAME_LOGOTYPE.en} />
             </span>
             <span className="-my-[0.12em] block w-full overflow-hidden py-[0.12em] motion-safe:opacity-0 motion-safe:animate-[hero-slide-up_0.6s_ease-out_0.95s_forwards]">
-              <HeroNameLine lang="zh" text={nameZh} logotype={HERO_NAME_LOGOTYPE.zh} />
+              <HeroNameLine lang="zh" text={nameZh} logotype={NAME_LOGOTYPE.zh} />
             </span>
           </h1>
 

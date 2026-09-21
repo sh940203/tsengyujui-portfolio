@@ -4,7 +4,7 @@ import { Noto_Sans_TC, Syne } from "next/font/google";
  * 首頁 Hero 姓名/職稱的文字字體——只套在 `hero.tsx` 上，不動
  * `src/components/blocks/render/fonts.ts` 的全站字體（SPEC §5.2）。
  *
- * 姓名之後會由 `hero-logotype.ts` 的專屬字樣取代；這裡的字體是「字樣還沒做」
+ * 姓名之後會由 `src/lib/brand/name-logotype.ts` 的專屬字樣取代；這裡的字體是「字樣還沒做」
  * 時的退回顯示，以及職稱那一行（`Fashion Designer`）本來就一直會用到的字體。
  *
  * 英文：Syne（寬字距、個性強的無襯線，藝術/前衛時裝識別常見，仍屬 grotesque

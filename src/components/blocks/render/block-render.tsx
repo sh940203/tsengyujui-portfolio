@@ -5,6 +5,7 @@ import { useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from
 import { Lang, langFontClass, langFontVariables } from "@/components/lang";
 import Link from "next/link";
 import type { AdjacentCollectionLink, RenderBlock, RenderMediaOption, RenderTheme } from "./types";
+import { THEME_COLORS } from "@/lib/collections/theme-colors";
 
 /**
  * 12 種區塊的共用渲染元件（SPEC.md §13 項目 19 即時預覽 + 項目 23 前台
@@ -37,9 +38,9 @@ import type { AdjacentCollectionLink, RenderBlock, RenderMediaOption, RenderThem
 type CSSVarStyle = CSSProperties & Record<`--${string}`, string | number>;
 
 const THEME_VARS: Record<RenderTheme, CSSVarStyle> = {
-  dark: { "--bg": "#0A0A0A", "--fg": "#E8E8E8" },
-  light: { "--bg": "#F2F3F4", "--fg": "#111111" },
-  void: { "--bg": "#000000", "--fg": "#FFFFFF" },
+  dark: { "--bg": THEME_COLORS.dark.bg, "--fg": THEME_COLORS.dark.fg },
+  light: { "--bg": THEME_COLORS.light.bg, "--fg": THEME_COLORS.light.fg },
+  void: { "--bg": THEME_COLORS.void.bg, "--fg": THEME_COLORS.void.fg },
 };
 
 // SPEC.md §5.3 —— 間距 token，基準單位 8px。
