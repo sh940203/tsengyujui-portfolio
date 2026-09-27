@@ -4,7 +4,7 @@ import { db } from "@/lib/db/client";
 import { getHomeCarouselPairs, getSeriesShowcase } from "@/lib/media/featured";
 import { resolveOgImageUrl } from "@/lib/media/resolve-og-image";
 import { getProfile } from "@/lib/profile/get-profile";
-import { collections, media } from "@/lib/db/schema";
+import { awards, collections, media } from "@/lib/db/schema";
 import {
   GENERIC_SITE_DESCRIPTION,
   absoluteUrl,
@@ -12,6 +12,7 @@ import {
   jsonLdScriptProps,
   truncateDescription,
 } from "@/lib/seo";
+import { AwardsMarquee } from "@/components/awards-marquee";
 import { LangPageWrapper } from "@/components/lang-page-wrapper";
 import { SiteFooter } from "@/components/site-footer";
 import { Hero } from "./hero";
@@ -49,7 +50,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * 首頁（SPEC.md §4.2）：Hero（背景輪播）→ 系列區塊（僅
+ * 首頁（SPEC.md §4.2）：Hero（背景輪播）→ 獲獎跑馬燈 → 系列區塊（僅
  * `visibility === 'public'`，查詢層過濾，沿用 `/work/[slug]` 已經定案的
  * 原則，不是前端 filter）→ 簡短簡介 → 頁尾。
  *
@@ -62,6 +63,13 @@ export async function generateMetadata(): Promise<Metadata> {
  * （例如還沒有任何系列是 public）時，退回 `profile.heroImageId` 當
  * 單張靜態背景；兩者都沒有就維持純黑背景，跟這批之前驗證過的優雅降級
  * 行為一致。
+ *
+ * **獲獎跑馬燈**（2026-09-24 從關於頁搬過來）：業主原本指定「中段或尾段皆可」，
+ * 放在簡介之後、頁尾之前；2026-09-28 業主看過正式站後回饋，改指定放在
+ * 「Selected work / 作品」黑色區塊（`SeriesSections`）**上面**——現在是 Hero
+ * 結束後的第一段，作品列表之前。元件見 `src/components/awards-marquee.tsx`
+ * （原本裝在關於頁，關於頁改用一目瞭然的靜態清單，見 `about/about-sections.tsx`
+ * 的 `AwardsList`）。
  */
 export default async function HomePage() {
   const profileRow = await getProfile();
@@ -102,6 +110,21 @@ export default async function HomePage() {
     publicCollections.map((c) => getSeriesShowcase(c.id, c.coverImageId)),
   );
   const bioImageId = profileRow?.aboutImageId ?? profileRow?.heroImageId ?? null;
+
+  // 獲獎跑馬燈的資料——只選需要的欄位（不含 imageId/showCertificate，首頁的
+  // 跑馬燈不顯示證書，那是關於頁證書區塊的事）。沒有標題的獎項（理論上不會有）
+  // 不放進去，同關於頁 `AwardsList` 的規則。
+  const awardRows = await db
+    .select({
+      id: awards.id,
+      year: awards.year,
+      titleEn: awards.titleEn,
+      titleZh: awards.titleZh,
+      resultEn: awards.resultEn,
+      resultZh: awards.resultZh,
+    })
+    .from(awards)
+    .orderBy(asc(awards.sortOrder));
 
   const carouselPairs = await getHomeCarouselPairs();
   // Fallback（沒有任何系列湊得出「同系列兩張」時）：退回單張靜態圖，左右
@@ -150,6 +173,18 @@ export default async function HomePage() {
           locationEn={profileRow?.locationEn ?? null}
           locationZh={profileRow?.locationZh ?? null}
           pairs={heroPairs}
+        />
+        <AwardsMarquee
+          awards={awardRows
+            .filter((a) => a.titleEn || a.titleZh)
+            .map((a) => ({
+              id: a.id,
+              year: a.year,
+              titleEn: a.titleEn,
+              titleZh: a.titleZh,
+              resultEn: a.resultEn,
+              resultZh: a.resultZh,
+            }))}
         />
         <SeriesSections
           items={publicCollections.map((c, i) => ({

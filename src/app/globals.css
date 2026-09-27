@@ -43,11 +43,21 @@ body {
   --ui-bg: #0a0a0a;
   --ui-fg: #f2f3f4;
   --ui-muted: #808080;
+  /*
+   * 關於頁獎項「跳色」（2026-09-27，業主直接要求，見 `about-sections.tsx` 的
+   * `AwardResult`）——刻意偏離 SPEC §5.1「介面僅黑灰白三色系」的唯一例外，範圍
+   * 只限成績標籤這一個徽章。金色系（獎牌意象），深色/淺色主題各自一組數值：
+   * 深色 `#FFC53D` 對 `--ui-bg`（#0A0A0A）對比度 12.5:1；淺色 `#6B4E00` 對
+   * `--ui-bg`（#F2F3F4）對比度 7.0:1——都遠超 WCAG AA 小字文字門檻 4.5:1（實測
+   * 用 WCAG 相對亮度公式算過，不是目測）。
+   */
+  --award-accent: #ffc53d;
 }
 [data-ui-theme="light"] {
   --ui-bg: #f2f3f4;
   --ui-fg: #0a0a0a;
   --ui-muted: #595959;
+  --award-accent: #6b4e00;
 }
 
 /*
@@ -328,6 +338,115 @@ body {
 }
 [data-lang="zh"] .statement-stack .lang-zh {
   order: -1;
+}
+
+/*
+ * 「英文＋中文同一行」的雙語排法（2026-09-22，關於頁用）：兩種語言之間留一點間距、依語言
+ * 模式排序（主要語言在前）、不換行。原本 `.lang-en`/`.lang-zh` 是緊貼的兩個行內 span，
+ * 短標籤（職稱、頁面標籤）看起來像黏在一起（「Fashion Designer服裝設計師」）。
+ */
+.lang-pair {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35em;
+  white-space: nowrap;
+}
+[data-lang="zh"] .lang-pair .lang-zh {
+  order: -1;
+}
+
+/*
+ * 關於頁獎項清單標題（`about/about-sections.tsx` 的 `AwardTitle`，2026-09-27）——
+ * 疊在 `.series-title-lang` 之上，只加開字距與行距，不改 `.series-title-lang`
+ * 本身（那個 class 全站共用，首頁系列標題、關於頁其餘小標題都在用）。業主回饋
+ * 「排版有點擁擠，字距離開一些，但不能損失太多字體大小」：問題不是字級，是中文
+ * 在大字級下沒有額外字距、方塊字彼此貼太緊，所以中文開得比英文多；英文/中文兩行
+ * 之間的垂直間距也從 `.series-title-lang` 預設的 0.25em 加大到 0.35em。
+ */
+.award-title-spaced {
+  gap: 0.35em;
+}
+.award-title-spaced .lang-en {
+  letter-spacing: 0.01em;
+}
+.award-title-spaced .lang-zh {
+  letter-spacing: 0.06em;
+}
+
+/*
+ * 「一行能看完」（2026-09-28，業主回饋「字太擠了，我要一行能看完」——實際看到的
+ * 是沒有英文譯名的獎項，`AwardTitle` 的退回分支原本完全沒有換行控制，長標題被
+ * 瀏覽器預設斷行硬切成兩行）。固定的 vw 相對字級不知道內容多長，改用 CSS
+ * Container Query 讓每個標題自己算出「剛好塞滿這一欄、不換行」的字級：
+ *
+ * - `.award-list`（掛在 `about-sections.tsx` 的 `<ul>` 上）用
+ *   `container-type: inline-size`，讓子孫元素的 `cqi` 單位精準對應這一欄
+ *   （不是整個視窗）在目前螢幕寬度下的實際寬度——手機/桌機/任何中間寬度都自動
+ *   正確，不用像 vw 那樣為每個斷點手動調數字。
+ * - `--en-chars`/`--zh-chars`：每個標題英文/中文的字數，`about-sections.tsx`
+ *   算好（`titleEn.length`/`titleZh.length`）透過行內樣式帶進來。
+ * - 公式「容器寬度 ÷ 字數 ÷ 平均字寬比例」直接反推出「剛好塞滿一行」的字級。
+ *   比例是實測估的、留了安全邊界：中文全形字元大約跟字級等寬，但這裡的中文
+ *   還額外加了 0.06em 字距（`.award-title-spaced`／退回分支的行內樣式，見
+ *   `about-sections.tsx`），第一版只抓 1.05 沒把這筆字距算進去，實測在 14 字
+ *   的標題上還是被擠到換行（855px 欄寬、58px 字級下差了約 5–10px），改抓 1.2
+ *   才確實留夠邊界；英文（Inter Tight Bold，大小寫與空格混合，also 有 0.01em
+ *   字距）平均窄一些，抓 0.65。兩個數字都是先用真實資料實測抓到差距後才調整，
+ *   不是憑感覺選的。
+ * - `.award-fit-title`（有英文譯名，`series-title-lang` 兩行都要塞得進去）：
+ *   依照目前主要語言用 `[data-lang]` 分兩條規則，`min()` 同時檢查主要語言
+ *   （1 倍字級）與次要語言（SPEC §6.1 既有的 0.55 倍）兩行是否都塞得進去，
+ *   取更保守（更小）的那個——這樣才不會破壞既有的「主要/次要」視覺比例規則，
+ *   只是把基準字級本身從固定的 vw 值改成看內容長度決定。
+ * - `.award-fit-title-solo`（沒有英文譯名，只有一行中文，不受主/次語言比例
+ *   影響）：直接用滿版容器寬度換算，不用 `min()`。
+ * - `clamp()` 的上限（4rem）沿用原本的設計上限，字數少的短標題不會被公式撐
+ *   超過；下限（1rem）只是最後防線，目前 4 筆資料的字數都不會撞到它。
+ */
+.award-list {
+  container-type: inline-size;
+}
+[data-lang="en"] .award-fit-title {
+  font-size: clamp(
+    1rem,
+    min(calc(100cqi / var(--en-chars, 10) / 0.65), calc(100cqi / var(--zh-chars, 8) / 1.2 / 0.55)),
+    4rem
+  );
+}
+[data-lang="zh"] .award-fit-title {
+  font-size: clamp(
+    1rem,
+    min(calc(100cqi / var(--zh-chars, 8) / 1.2), calc(100cqi / var(--en-chars, 10) / 0.65 / 0.55)),
+    4rem
+  );
+}
+.award-fit-title-solo {
+  font-size: clamp(1rem, calc(100cqi / var(--zh-chars, 8) / 1.2), 4rem);
+}
+
+/*
+ * 關於頁獲獎跑馬燈（`src/app/about/awards-marquee.tsx`）。獎項名稱是單行巨大字級，
+ * 用上面的 `.lang-pair`。
+ * 滑鼠停在色帶上時（跑馬燈同時暫停）其他獎項淡下去、只留指到的那一筆——跟 Cumedy
+ * 拼貼的懸停是同一種語彙；觸控裝置沒有 hover，不受影響。
+ */
+.award-item {
+  transition: opacity 0.25s ease;
+}
+/* 減少動態：跑馬燈改成靜態清單，獎項名稱允許換行（不再是單行無限延伸） */
+@media (prefers-reduced-motion: reduce) {
+  .award-item .lang-pair {
+    white-space: normal;
+    flex-wrap: wrap;
+  }
+}
+@media (hover: hover) {
+  .award-marquee:hover .award-item {
+    opacity: 0.3;
+  }
+  .award-marquee .award-item:hover {
+    opacity: 1;
+  }
 }
 
 /* Cumedy Night 拼貼的每一張：傾斜/位移由行內的 --r/--x 決定，懸停時才被覆蓋 */
