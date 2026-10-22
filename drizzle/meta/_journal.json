@@ -43,6 +43,13 @@
       "when": 1789396902498,
       "tag": "0005_premium_flatman",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1792611068486,
+      "tag": "0006_damp_red_skull",
+      "breakpoints": true
     }
   ]
 }

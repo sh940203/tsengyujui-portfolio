@@ -710,6 +710,11 @@ type Lang = 'en' | 'zh'
 
 ### 7.4 Block Editor `/admin/collections/[id]`
 
+> **2026-10-22 業主決定：區塊編輯器從後台導覽收起。** 系列頁自 2026-09-21 起改成直接讀圖庫
+> （左欄敘述／右欄依系列主題的三種長廊），區塊排版不再影響前台。取而代之的是系列編輯頁的
+> 「作品長廊」：隱藏個別作品（`media.galleryHidden`）、拖曳自訂順序（`media.galleryOrder`）。
+> 區塊編輯器程式保留，`/admin/collections/[id]/blocks` 仍可進入。詳見 HANDOFF Phase 7。
+
 **版面**
 
 ```

@@ -48,6 +48,7 @@ export async function updateProfile(
     .where(eq(profile.id, "singleton"));
 
   revalidatePath("/admin/profile");
+  revalidatePath("/admin"); // 總覽的「待補資料」
   // 首頁（姓名/bio/聯絡資訊）跟關於頁都直接讀這張表，不 revalidate 的話
   // 存檔後前台會有一段時間顯示舊資料（下次自然重新整理前）。
   revalidatePath("/");

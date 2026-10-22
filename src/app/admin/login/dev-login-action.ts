@@ -57,5 +57,5 @@ export async function devLogin() {
     expires,
   });
 
-  redirect("/admin/collections");
+  redirect("/admin");
 }

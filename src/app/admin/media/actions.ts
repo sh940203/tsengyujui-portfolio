@@ -35,6 +35,24 @@ const ROTATION_ENUM = z.union([
   z.literal(270),
 ]);
 
+
+/**
+ * 圖庫的任何變更都可能影響前台（系列頁長廊直接讀 media 表、首頁拼貼與輪播、關於頁證書），
+ * 2026-10-22 之前只重新驗證 `/admin/media`——改了類型、替代文字、系列或刪圖之後，前台要等
+ * 下次自然更新才看得到。統一走這支。
+ */
+function revalidateMediaEverywhere() {
+  revalidatePath("/admin/media");
+  revalidatePath("/admin");
+  revalidatePath("/admin/collections", "layout");
+  revalidatePath("/");
+  revalidatePath("/about");
+  revalidatePath("/work/[slug]", "page");
+}
+
+/** 換系列時，舊系列的長廊順序/隱藏/精選不能跟著帶過去（會讓新系列被誤判成「有自訂順序」）。 */
+const RESET_GALLERY_STATE = { galleryOrder: null, galleryHidden: false, featuredOrder: null } as const;
+
 async function checkRateLimit(
   limiter: { limit: (key: string) => Promise<{ success: boolean }> },
   key: string,
@@ -165,12 +183,8 @@ export async function rotateMedia(input: unknown) {
     .set({ r2Key: newKey, rotation, width: result.width, height: result.height })
     .where(eq(media.id, mediaId));
 
-  revalidatePath("/admin/media");
-  // 首頁、關於頁是靜態產生的，HTML 裡寫著舊網址，要重新驗證才會換成新的；
-  // 系列頁本來就是逐請求渲染，一併標記無妨。
-  revalidatePath("/");
-  revalidatePath("/about");
-  revalidatePath("/work/[slug]", "page");
+  // 首頁、關於頁是靜態產生的，HTML 裡寫著舊網址，要重新驗證才會換成新的
+  revalidateMediaEverywhere();
 
   return { rotation, r2Key: newKey, width: result.width, height: result.height };
 }
@@ -189,7 +203,7 @@ export async function updateMediaFocal(input: unknown) {
   const { mediaId, focalX, focalY } = FocalSchema.parse(input);
 
   await db.update(media).set({ focalX, focalY }).where(eq(media.id, mediaId));
-  revalidatePath("/admin/media");
+  revalidateMediaEverywhere();
 }
 
 // ── 5. kind ────────────────────────────────────────────────────────
@@ -205,7 +219,7 @@ export async function updateMediaKind(input: unknown) {
   const { mediaId, kind } = KindSchema.parse(input);
 
   await db.update(media).set({ kind }).where(eq(media.id, mediaId));
-  revalidatePath("/admin/media");
+  revalidateMediaEverywhere();
 }
 
 // ── 6. Alt 文字 ────────────────────────────────────────────────────
@@ -225,7 +239,7 @@ export async function updateMediaAlt(input: unknown) {
     .update(media)
     .set({ altEn: altEn || null, altZh: altZh || null })
     .where(eq(media.id, mediaId));
-  revalidatePath("/admin/media");
+  revalidateMediaEverywhere();
 }
 
 // ── 7. 指派系列（單筆） ─────────────────────────────────────────────
@@ -240,8 +254,12 @@ export async function updateMediaCollection(input: unknown) {
   await checkRateLimit(adminWriteRateLimit, session.user.id);
   const { mediaId, collectionId } = CollectionSchema.parse(input);
 
-  await db.update(media).set({ collectionId }).where(eq(media.id, mediaId));
-  revalidatePath("/admin/media");
+  const [current] = await db.select({ collectionId: media.collectionId }).from(media).where(eq(media.id, mediaId)).limit(1);
+  await db
+    .update(media)
+    .set(current?.collectionId === collectionId ? { collectionId } : { collectionId, ...RESET_GALLERY_STATE })
+    .where(eq(media.id, mediaId));
+  revalidateMediaEverywhere();
 }
 
 // ── 8. 批次操作 ────────────────────────────────────────────────────
@@ -256,7 +274,7 @@ export async function batchUpdateKind(input: unknown) {
     .parse(input);
 
   await db.update(media).set({ kind }).where(inArray(media.id, mediaIds));
-  revalidatePath("/admin/media");
+  revalidateMediaEverywhere();
 }
 
 export async function batchUpdateCollection(input: unknown) {
@@ -266,11 +284,16 @@ export async function batchUpdateCollection(input: unknown) {
     .object({ mediaIds: MediaIdsSchema, collectionId: z.string().cuid2().nullable() })
     .parse(input);
 
-  await db
-    .update(media)
-    .set({ collectionId })
-    .where(inArray(media.id, mediaIds));
-  revalidatePath("/admin/media");
+  // 只重設「真的換了系列」的那些（已經在目標系列的圖保留它的長廊狀態）
+  const rows = await db.select({ id: media.id, collectionId: media.collectionId }).from(media).where(inArray(media.id, mediaIds));
+  const moving = rows.filter((r) => r.collectionId !== collectionId).map((r) => r.id);
+  if (moving.length > 0) {
+    await db
+      .update(media)
+      .set({ collectionId, ...RESET_GALLERY_STATE })
+      .where(inArray(media.id, moving));
+  }
+  revalidateMediaEverywhere();
 }
 
 export async function batchDeleteMedia(input: unknown) {
@@ -299,5 +322,49 @@ export async function batchDeleteMedia(input: unknown) {
   }
 
   await db.delete(media).where(inArray(media.id, mediaIds));
-  revalidatePath("/admin/media");
+  revalidateMediaEverywhere();
+}
+
+// ── 9. 圖片詳細資料（後台圖庫側邊面板，一次存全部）────────────────────
+// 2026-10-22 後台改版：圖庫點開單張圖的面板裡，類型／系列／替代文字／焦點是同一個表單、
+// 一個儲存鈕（業主選了手動儲存＋未存提醒），不是每改一欄就各自打一支 API。
+
+const DetailsSchema = z.object({
+  mediaId: z.string().cuid2(),
+  kind: KIND_ENUM,
+  collectionId: z.string().cuid2().nullable(),
+  altEn: z.string().max(300),
+  altZh: z.string().max(300),
+  focalX: z.number().min(0).max(1),
+  focalY: z.number().min(0).max(1),
+});
+
+export async function updateMediaDetails(
+  input: unknown,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await requireAuth();
+  const { success } = await adminWriteRateLimit.limit(session.user.id);
+  if (!success) return { ok: false, error: "操作太頻繁，請稍後再試。" };
+  const parsed = DetailsSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "輸入格式錯誤" };
+  const { mediaId, kind, collectionId, altEn, altZh, focalX, focalY } = parsed.data;
+
+  const [current] = await db.select({ collectionId: media.collectionId }).from(media).where(eq(media.id, mediaId)).limit(1);
+  if (!current) return { ok: false, error: "找不到這張圖片（可能已被刪除）" };
+
+  await db
+    .update(media)
+    .set({
+      kind,
+      collectionId,
+      altEn: altEn.trim() || null,
+      altZh: altZh.trim() || null,
+      focalX,
+      focalY,
+      ...(current.collectionId === collectionId ? {} : RESET_GALLERY_STATE),
+    })
+    .where(eq(media.id, mediaId));
+
+  revalidateMediaEverywhere();
+  return { ok: true };
 }

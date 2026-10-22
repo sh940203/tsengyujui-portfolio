@@ -425,7 +425,7 @@ body {
 }
 
 /*
- * 關於頁獲獎跑馬燈（`src/app/about/awards-marquee.tsx`）。獎項名稱是單行巨大字級，
+ * 首頁獲獎跑馬燈（`src/components/awards-marquee.tsx`，2026-09-24 從關於頁搬到首頁）。獎項名稱是單行巨大字級，
  * 用上面的 `.lang-pair`。
  * 滑鼠停在色帶上時（跑馬燈同時暫停）其他獎項淡下去、只留指到的那一筆——跟 Cumedy
  * 拼貼的懸停是同一種語彙；觸控裝置沒有 hover，不受影響。
@@ -487,5 +487,118 @@ body {
   }
   100% {
     transform: translateY(200%);
+  }
+}
+
+/*
+ * ── 後台（/admin）──────────────────────────────────────────────────
+ * 2026-10-22 後台改版。只作用在 `.admin-root`（`src/components/admin/shell.tsx`）
+ * 底下，不影響前台。字體用 Geist（根 layout 已載入、可變字重）＋ Noto Sans TC。
+ * 轉場一律短、帶減速曲線；`prefers-reduced-motion` 時全部縮成幾乎瞬間。
+ */
+.admin-root {
+  font-family: var(--font-geist-sans), var(--font-zh), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@keyframes admin-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* fill-mode 只用 backwards（不能用 both）：both 會讓 transform 在動畫結束後仍然「生效中」，
+   Chrome 因此把 <main> 當成 position: fixed 子元素的定位基準——拖曳中的縮圖（dnd-kit
+   DragOverlay）與底部儲存列都會被定位到錯的地方（實測：拖曳永遠判定成放回原位）。 */
+.admin-page-in {
+  animation: admin-page-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+@keyframes admin-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.admin-fade-in {
+  animation: admin-fade-in 0.3s ease both;
+}
+
+@keyframes admin-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  70% {
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.admin-pop {
+  animation: admin-pop 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes admin-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes admin-toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+.admin-toast-in {
+  animation: admin-toast-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.admin-toast-out {
+  animation: admin-toast-out 0.2s ease-in both;
+}
+
+@keyframes admin-shimmer {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+.admin-shimmer {
+  background-image: linear-gradient(90deg, transparent 0%, rgb(255 255 255 / 0.55) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: admin-shimmer 1.4s ease-in-out infinite;
+}
+
+/* 拖曳中的卡片：浮起來 */
+.admin-dragging {
+  box-shadow:
+    0 18px 40px -12px rgb(28 25 23 / 0.35),
+    0 0 0 2px rgb(28 25 23);
+  z-index: 30;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-root *,
+  .admin-root *::before,
+  .admin-root *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

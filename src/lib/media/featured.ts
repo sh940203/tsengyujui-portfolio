@@ -28,7 +28,7 @@ import { collections, media } from "@/lib/db/schema";
  * 多張」才有意義（多選幾張＝這個系列在輪播裡出現更多不同的組合，不是
  * 選了也沒用）。最後湊不成一對的單張（例如選了 5 張，第 5 張落單）直接
  * 丟棄，不會亂配對到下一個系列的圖——「同系列配對」這條規則任何情況都
- * 不能破。`FeaturedPhotosForm`（後台表單）同步顯示「第幾對的左/右」，
+ * 不能破。後台系列編輯器的「首頁輪播精選」同步顯示「第幾對的左/右」，
  * 不是只顯示一串縮圖靠使用者自己數奇偶數。
  */
 
@@ -53,11 +53,22 @@ export interface CarouselPair {
 
 const FALLBACK_COUNT = 4;
 
+/**
+ * 2026-10-22：業主在後台長廊「隱藏」的圖（`galleryHidden`）也不會出現在首頁——
+ * 不論是精選照還是沒選精選照時的備援圖。後台本身也會擋（隱藏的圖不能設成精選），
+ * 這裡是第二道防線。系列封面（`coverImageId`）是業主另外明確指定的，不受影響。
+ */
 async function getCollectionCarouselPool(collectionId: string): Promise<CarouselImage[]> {
   const featured = await db
     .select({ id: media.id, r2Key: media.r2Key, altEn: media.altEn })
     .from(media)
-    .where(and(eq(media.collectionId, collectionId), isNotNull(media.featuredOrder)))
+    .where(
+      and(
+        eq(media.collectionId, collectionId),
+        isNotNull(media.featuredOrder),
+        eq(media.galleryHidden, false),
+      ),
+    )
     .orderBy(asc(media.featuredOrder));
 
   if (featured.length > 0) return featured;
@@ -65,7 +76,7 @@ async function getCollectionCarouselPool(collectionId: string): Promise<Carousel
   return db
     .select({ id: media.id, r2Key: media.r2Key, altEn: media.altEn })
     .from(media)
-    .where(eq(media.collectionId, collectionId))
+    .where(and(eq(media.collectionId, collectionId), eq(media.galleryHidden, false)))
     .orderBy(asc(media.sortOrder))
     .limit(FALLBACK_COUNT);
 }

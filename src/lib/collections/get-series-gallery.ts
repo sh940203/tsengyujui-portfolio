@@ -1,7 +1,8 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { media } from "@/lib/db/schema";
-import { KIND_ORDER, type GalleryStyle, type MediaKind } from "./gallery-style";
+import { sortGallery } from "./gallery-order";
+import type { GalleryStyle, MediaKind } from "./gallery-style";
 
 export interface GalleryItem {
   id: string;
@@ -28,6 +29,10 @@ export interface GalleryItem {
  * 實際變體檔是 800×1131 直式）。所以這裡**不能**再依 `rotation` 對調寬高
  * （上一版多對調了一次，手繪稿被放進橫式的框再被 `cover` 裁掉，用真實變體
  * 檔量到才發現）。沒有寬高資料的退回 2:3（成品照的常見比例）。
+ *
+ * 2026-10-22：業主可以在後台系列編輯器隱藏個別作品（`galleryHidden`，在查詢層就
+ * 濾掉，不是前端藏起來）與拖曳自訂順序（`galleryOrder`）。排序規則抽到
+ * `gallery-order.ts`，後台編輯器用同一支，所以後台看到的順序就是前台的順序。
  */
 export async function getSeriesGallery(collectionId: string, style: GalleryStyle): Promise<GalleryItem[]> {
   const rows = await db
@@ -39,33 +44,23 @@ export async function getSeriesGallery(collectionId: string, style: GalleryStyle
       height: media.height,
       altEn: media.altEn,
       altZh: media.altZh,
+      sortOrder: media.sortOrder,
+      galleryOrder: media.galleryOrder,
     })
     .from(media)
-    .where(eq(media.collectionId, collectionId))
+    .where(and(eq(media.collectionId, collectionId), eq(media.galleryHidden, false)))
     .orderBy(asc(media.sortOrder));
 
-  const order = KIND_ORDER[style];
-  const rank = (kind: MediaKind) => {
-    const i = order.indexOf(kind);
-    return i === -1 ? order.length : i;
-  };
-
-  return rows
-    .map((row, originalIndex) => {
-      const w = row.width;
-      const h = row.height;
-      return {
-        originalIndex,
-        item: {
-          id: row.id,
-          r2Key: row.r2Key,
-          kind: row.kind,
-          aspect: w && h ? w / h : 2 / 3,
-          altEn: row.altEn,
-          altZh: row.altZh,
-        } satisfies GalleryItem,
-      };
-    })
-    .sort((a, b) => rank(a.item.kind) - rank(b.item.kind) || a.originalIndex - b.originalIndex)
-    .map((entry) => entry.item);
+  return sortGallery(rows, style).map((row) => {
+    const w = row.width;
+    const h = row.height;
+    return {
+      id: row.id,
+      r2Key: row.r2Key,
+      kind: row.kind,
+      aspect: w && h ? w / h : 2 / 3,
+      altEn: row.altEn,
+      altZh: row.altZh,
+    } satisfies GalleryItem;
+  });
 }

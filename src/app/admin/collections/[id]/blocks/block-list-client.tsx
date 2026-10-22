@@ -393,11 +393,16 @@ export function BlockListClient({
   }
 
   return (
-    <main className="mx-auto flex max-w-7xl flex-col gap-6 p-6 lg:flex-row lg:items-start">
+    <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
       <div className="min-w-0 flex-1">
         <Link href={`/admin/collections/${collectionId}`} className="text-sm underline">
           ← 回系列基本資料
         </Link>
+        {/* 2026-10-22：系列頁自 2026-09-21 起直接讀圖庫，不再使用這裡的排版——業主決定從導覽收起，
+            程式保留以備日後需要。進到這頁的人要先知道這件事，免得以為改了會反映到前台。 */}
+        <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          區塊編輯器目前不影響前台。系列頁的作品長廊請到「系列 → 作品長廊」調整。
+        </p>
         <h1 className="mt-2 text-xl font-medium">區塊：{collectionTitle}</h1>
 
         <div className="mt-3 flex items-center gap-3 rounded border border-neutral-200 bg-neutral-50 p-3 text-sm">
@@ -484,6 +489,6 @@ export function BlockListClient({
           title="即時預覽"
         />
       </div>
-    </main>
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAuth } from "@/lib/auth/guard";
@@ -15,7 +15,7 @@ const UpdateCollectionSchema = z.object({
     .string()
     .min(1)
     .max(60)
-    .regex(/^[a-z0-9-]+$/, "slug 只能是小寫英數與連字號"),
+    .regex(/^[a-z0-9-]+$/, "網址代稱只能是小寫英數與連字號"),
   titleEn: z.string().min(1).max(120),
   titleZh: z.string().max(120).nullable(),
   year: z.string().max(20).nullable(),
@@ -35,91 +35,93 @@ const UpdateCollectionSchema = z.object({
 
 export type UpdateCollectionInput = z.infer<typeof UpdateCollectionSchema>;
 
-export async function updateCollection(
+// ── 系列編輯器：一次存全部（2026-10-22 後台改版）──────────────────────
+// 系列編輯頁改成「整頁一個儲存鈕」（業主選了手動儲存＋未存提醒）：基本資料、敘述、
+// 外觀、作品長廊（順序／隱藏）、首頁精選照一起送出。全部寫入包在同一個 libsql batch
+// 裡（同一筆交易），不會出現「基本資料存了、長廊順序沒存」這種半套狀態。
+
+const SaveCollectionEditorSchema = z.object({
+  collection: UpdateCollectionSchema,
+  gallery: z.object({
+    /** 這個系列全部圖片的順序（含隱藏的）。 */
+    orderedIds: z.array(z.string().cuid2()).max(500),
+    /** false＝沒有自訂順序，前台依類型自動排序（`galleryOrder` 全部清成 null）。 */
+    custom: z.boolean(),
+    hiddenIds: z.array(z.string().cuid2()).max(500),
+  }),
+  featuredIds: z.array(z.string().cuid2()).max(30),
+});
+
+export async function saveCollectionEditor(
   input: unknown,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const session = await requireAuth();
   const { success } = await adminWriteRateLimit.limit(session.user.id);
   if (!success) return { ok: false, error: "操作太頻繁，請稍後再試。" };
 
-  const parsed = UpdateCollectionSchema.safeParse(input);
+  const parsed = SaveCollectionEditorSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "輸入格式錯誤" };
+    const issue = parsed.error.issues[0];
+    return { ok: false, error: issue?.message ?? "輸入格式錯誤" };
   }
-  const { id, ...values } = parsed.data;
+  const { collection, gallery, featuredIds } = parsed.data;
+  const { id, ...values } = collection;
+
+  const [existing] = await db
+    .select({ slug: collections.slug })
+    .from(collections)
+    .where(eq(collections.id, id))
+    .limit(1);
+  if (!existing) return { ok: false, error: "找不到這個系列" };
+
+  // 防呆：只處理真的屬於這個系列的圖（不讓竄改過的請求動到別的系列）
+  const ownedRows = await db
+    .select({ id: media.id })
+    .from(media)
+    .where(eq(media.collectionId, id));
+  const owned = new Set(ownedRows.map((r) => r.id));
+  const hidden = new Set(gallery.hiddenIds.filter((mid) => owned.has(mid)));
+  const ordered = gallery.orderedIds.filter((mid) => owned.has(mid));
+  // 順序清單漏掉的圖（例如編輯期間另一個分頁剛上傳的）排在最後，不會被弄丟
+  for (const mid of owned) if (!ordered.includes(mid)) ordered.push(mid);
+  // 隱藏的圖不能當首頁精選（前台 featured.ts 也會擋，這裡是第一道）
+  const featured = featuredIds.filter((mid) => owned.has(mid) && !hidden.has(mid));
+  const featuredIndex = new Map(featured.map((mid, i) => [mid, i]));
 
   try {
-    await db
-      .update(collections)
-      .set({ ...values, updatedAt: new Date() })
-      .where(eq(collections.id, id));
+    await db.batch([
+      db
+        .update(collections)
+        .set({ ...values, updatedAt: new Date() })
+        .where(eq(collections.id, id)),
+      ...ordered.map((mid, index) =>
+        db
+          .update(media)
+          .set({
+            galleryOrder: gallery.custom ? index : null,
+            galleryHidden: hidden.has(mid),
+            featuredOrder: featuredIndex.get(mid) ?? null,
+          })
+          .where(eq(media.id, mid)),
+      ),
+    ]);
   } catch (err) {
-    // drizzle 包了一層 "Failed query: ..."，真正的 SQLITE_CONSTRAINT 錯誤在
-    // err.cause 裡（實測過：err.message 本身不含 "UNIQUE"，找錯地方會一路
-    // fall back 到通用錯誤訊息，使用者永遠看不到真正原因）。
     const cause = err instanceof Error ? err.cause : undefined;
     const causeMessage = cause instanceof Error ? cause.message : String(cause ?? "");
-    if (causeMessage.includes("UNIQUE")) {
-      return { ok: false, error: `slug "${values.slug}" 已經被使用` };
+    const message = err instanceof Error ? err.message : "";
+    if (causeMessage.includes("UNIQUE") || message.includes("UNIQUE")) {
+      return { ok: false, error: `網址代稱「${values.slug}」已經被其他系列使用` };
     }
     return { ok: false, error: "儲存失敗，請稍後再試。" };
   }
 
+  revalidatePath("/admin");
   revalidatePath("/admin/collections");
   revalidatePath(`/admin/collections/${id}`);
-  // `visibility`/`slug`/`statementEn` 等等都在這支表單裡改——公開前台
-  // （首頁列表、sitemap、llms.txt、該系列自己的頁面）都要跟著重新驗證，
-  // 不然 production 的靜態快取會在切換 public/draft 後繼續顯示舊狀態
-  // 直到下次部署（見 `publishCollection` 同一批次的說明）。用改之後的
-  // `values.slug`，不特別處理「改名」這種罕見情況下舊網址快取一起失效
-  // ——舊網址本來下一輪自然重整就會跟著更新，不是這批要解決的問題。
   revalidatePath("/");
   revalidatePath(`/work/${values.slug}`);
+  if (existing.slug !== values.slug) revalidatePath(`/work/${existing.slug}`);
   revalidatePath("/sitemap.xml");
   revalidatePath("/llms.txt");
-  return { ok: true };
-}
-
-// ── 精選照（首頁輪播）─────────────────────────────────────────────
-// 資料模型見 src/lib/db/schema.ts 的 media.featuredOrder 註解、讀取邏輯見
-// src/lib/media/featured.ts。這裡只負責「業主在後台選了哪些、什麼順序」
-// 寫回資料庫。
-
-const SetFeaturedMediaSchema = z.object({
-  collectionId: z.string().cuid2(),
-  mediaIds: z.array(z.string().cuid2()).max(30),
-});
-
-export async function setFeaturedMedia(
-  input: unknown,
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  const session = await requireAuth();
-  const { success } = await adminWriteRateLimit.limit(session.user.id);
-  if (!success) return { ok: false, error: "操作太頻繁，請稍後再試。" };
-
-  const parsed = SetFeaturedMediaSchema.safeParse(input);
-  if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "輸入格式錯誤" };
-  }
-  const { collectionId, mediaIds } = parsed.data;
-
-  // 防呆：只接受真的屬於這個系列的 media id，不讓人透過這支 action
-  // 把別的系列的照片標記成精選照（例如竄改過的請求）。
-  const ownedRows = await db
-    .select({ id: media.id })
-    .from(media)
-    .where(and(eq(media.collectionId, collectionId), inArray(media.id, mediaIds)));
-  const ownedIds = new Set(ownedRows.map((r) => r.id));
-  const finalIds = mediaIds.filter((id) => ownedIds.has(id));
-
-  // 先清空這個系列目前的精選照，再依新順序寫入——避免「移除了某張但
-  // 沒清掉它的 featuredOrder」這種殘留狀態。
-  await db.update(media).set({ featuredOrder: null }).where(eq(media.collectionId, collectionId));
-  await Promise.all(
-    finalIds.map((id, index) => db.update(media).set({ featuredOrder: index }).where(eq(media.id, id))),
-  );
-
-  revalidatePath(`/admin/collections/${collectionId}`);
-  revalidatePath("/");
   return { ok: true };
 }

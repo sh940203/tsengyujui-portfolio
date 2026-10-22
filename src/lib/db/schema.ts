@@ -105,6 +105,14 @@ export const media = sqliteTable("media", {
   // 多一次 join。見 src/lib/media/featured.ts。
   featuredOrder: integer("featured_order"),
 
+  // 系列內頁「作品長廊」的精選（2026-10-22，業主要能自己挑要顯示哪些、排什麼順序，
+  // 例如 Cumedy 48 件不想全部上架）。`galleryHidden`：true＝這張圖不出現在長廊，
+  // 也不會被首頁拿去當備援圖（見 `src/lib/media/featured.ts`）。`galleryOrder`：
+  // 業主在後台拖曳排序後的位置（同一系列內 0-based）；整個系列都是 null 時代表
+  // 沒有自訂過，長廊維持「依風格的類型順序」自動排序（`gallery-order.ts`）。
+  galleryHidden: integer("gallery_hidden", { mode: "boolean" }).notNull().default(false),
+  galleryOrder: integer("gallery_order"),
+
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
     .$defaultFn(() => new Date()),
